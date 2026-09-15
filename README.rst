@@ -41,8 +41,11 @@ __ https://github.com/kymatio/kymatio
 New in version 1.4.0
 ~~~~~~~~~~~~~~~~~~~~
 
-Two changes alter results for existing code; both are corrections rather than
-API changes, but they are worth reading before upgrading.
+**This release requires torch 2.6 or newer.** The previous floor of 1.0.0 had
+not reflected anything the library was tested against for years.
+
+Two further changes alter results for existing code; both are corrections
+rather than API changes, but they are worth reading before upgrading.
 
 - **The DWT gradients were wrong for the** ``symmetric`` **and** ``reflect``
   **padding schemes.** Every analysis and synthesis Function computed its

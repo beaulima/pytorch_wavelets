@@ -27,7 +27,7 @@ classifiers = [
 # test one.
 dependencies = [
     "numpy",
-    "torch>=1.0.0",
+    "torch>=2.6",
     "PyWavelets>=1.0.0",
 ]
 dynamic = ["version"]
