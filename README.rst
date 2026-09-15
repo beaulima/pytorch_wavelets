@@ -32,24 +32,61 @@ If you use this repo, please cite my PhD thesis, chapter 3: https://doi.org/10.1
 
 __ https://github.com/kymatio/kymatio
 
-Unreleased
-~~~~~~~~~~
+New in version 1.4.0
+~~~~~~~~~~~~~~~~~~~~
 
-- Added the 2D stationary (undecimated) wavelet transform: ``SWTForward`` and
-  ``SWTInverse`` are now exported and documented, and the inverse is a real
-  undecimated reconstruction validated against ``pywt.iswt2``.
-- Added a ``separable`` flag to ``DWTForward``/``DWTInverse``, as the docs had
-  long advertised.
-- Fixed the gradients of the DWT for the ``symmetric`` and ``reflect`` padding
-  schemes, which were not the adjoint of the forward transform, and in
-  ``periodization`` mode for odd-length inputs.
-- Replaced the dead Travis config with a GitHub Actions workflow covering
-  Python 3.9 to 3.12, and the long gradchecks are now marked ``slow`` and run
-  in their own job rather than being skipped outright.
-- The ScatterNet filters are registered as buffers rather than
+Two changes alter results for existing code; both are corrections rather than
+API changes, but they are worth reading before upgrading.
+
+- **The DWT gradients were wrong for the** ``symmetric`` **and** ``reflect``
+  **padding schemes.** Every analysis and synthesis Function computed its
+  backward pass as a synthesis filter bank applied to the incoming gradient,
+  which is the exact adjoint only for zero or periodic extension. The error
+  reached 96% in relative terms and was not confined to the boundary. The
+  ``periodization`` gradient was also wrong for odd-length inputs, where the
+  sample the forward transform appends was cropped instead of folded back.
+  Anything trained with those padding schemes will now see different - correct
+  - gradients. The default ``zero`` mode was always exact.
+- **The ScatterNet filters are registered as buffers** rather than
   ``nn.Parameter(requires_grad=False)``, so they no longer appear in
   ``.parameters()`` and an optimiser will not apply weight decay to them. The
-  ``state_dict`` keys are unchanged, so existing checkpoints keep loading.
+  ``state_dict`` keys are unchanged, so existing checkpoints keep loading, but
+  ``optim.SGD(ScatLayer().parameters())`` now raises "empty parameter list".
+
+New features:
+
+- The 2D stationary (undecimated) wavelet transform is now part of the public
+  API. ``SWTForward`` was reachable but broken for more than one level, and
+  ``SWTInverse`` could not even be imported and performed a decimated
+  synthesis. Both are fixed, exported and documented; the inverse is a real
+  undecimated reconstruction, validated against ``pywt.iswt2``.
+- ``DWTForward``/``DWTInverse`` accept the ``separable`` flag the docs have
+  advertised since v1.0.0. See the measured trade-off in the DWT docs.
+
+Other fixes:
+
+- ``mode='reflect'`` works when the wavelet is longer than the signal, where it
+  used to raise RuntimeError.
+- ``mypad`` raised IndexError whenever both axes were padded.
+- ``AFB2D``/``SFB2D`` applied the column filters across the rows when given
+  four distinct filters.
+- ``SmoothMagFn`` raised UnboundLocalError when only its second input needed a
+  gradient, and ``ScatLayerj2`` recorded ``biort`` as its ``qshift``.
+- Coefficients load through ``importlib.resources`` instead of the deprecated
+  ``pkg_resources``.
+
+Packaging and infrastructure:
+
+- ``pyproject.toml`` replaces ``setup.py``, and ``PyWavelets`` is declared as
+  the runtime dependency it has always been - a clean ``pip install`` used to
+  fail on import.
+- A ``Makefile`` builds a conda/mamba environment; ``make help`` lists the
+  targets.
+- GitHub Actions replaces the dead Travis config, covering Python 3.9 to 3.12.
+  The long gradchecks are marked ``slow`` and run in their own job rather than
+  being skipped outright.
+- The documentation builds again, and a test suite executes every example it
+  prints.
 
 New in version 1.3.0
 ~~~~~~~~~~~~~~~~~~~~
@@ -133,16 +170,14 @@ filters for subsequent scales. For the dwt we use the `db4` filters.
 For a fixed input size, but varying the number of scales (from 1 to 4) we have
 the following speeds (averaged over 5 runs):
 
-.. raw:: html
-
-    <img src="docs/scale.png" width="700px">
+.. image:: https://raw.githubusercontent.com/fbcotter/pytorch_wavelets/master/docs/scale.png
+    :width: 700px
 
 For an input size with height and width 512 by 512, we also vary the batch size
 for a 3 scale transform. The resulting speeds were:
 
-.. raw:: html
-
-    <img src="docs/batchsize.png" width="700px">
+.. image:: https://raw.githubusercontent.com/fbcotter/pytorch_wavelets/master/docs/batchsize.png
+    :width: 700px
 
 Installation
 ````````````

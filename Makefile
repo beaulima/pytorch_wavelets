@@ -103,7 +103,11 @@ docs: install ## Build the html documentation
 	@echo "Docs written to docs/_build/html/index.html"
 
 build: env ## Build the sdist and wheel into dist/
+	# Clear dist/ first: leaving artefacts from an older version behind means a
+	# later `twine upload dist/*` would try to publish both.
+	rm -rf dist
 	$(RUN) python -m build
+	$(RUN) python -m twine check dist/*
 
 clean: clean-build ## Remove build artefacts and caches
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +

@@ -62,6 +62,7 @@ dev = [
     "pandas",
     "flake8",
     "build",
+    "twine",
 ]
 
 [tool.setuptools.dynamic]

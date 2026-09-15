@@ -33,6 +33,7 @@ dependencies:
   - coverage
   - flake8
   - python-build
+  - twine
   - pandas
   # Docs
   - sphinx
