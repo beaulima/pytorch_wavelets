@@ -14,7 +14,11 @@
 .. |doi| image:: https://zenodo.org/badge/146817005.svg
    :target: https://zenodo.org/badge/latestdoi/146817005
    
-The full documentation is also available `here`__.
+The full documentation is also available `here`__, including a gallery of
+worked examples covering the DWT basics, the DTCWT's directional selectivity,
+shift invariance, denoising and optimising through the transform. Every
+example is executed when the documentation is built, and can be downloaded as
+a script or a notebook.
 
 __ http://pytorch-wavelets.readthedocs.io/
 

@@ -6,3 +6,5 @@ include Makefile
 recursive-include pytorch_wavelets/dtcwt/data *.npz
 recursive-include tests *.py
 recursive-include tests *.npz
+recursive-include examples *.py
+include examples/README.txt

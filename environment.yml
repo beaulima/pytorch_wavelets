@@ -35,7 +35,9 @@ dependencies:
   - python-build
   - twine
   - pandas
-  # Docs
+  # Docs and the examples gallery
+  - sphinx-gallery
+  - scikit-image
   - sphinx
   - sphinx_rtd_theme
   - sphinxcontrib-bibtex

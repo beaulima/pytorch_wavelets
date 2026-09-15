@@ -52,8 +52,21 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
-    'sphinxcontrib.bibtex'
+    'sphinxcontrib.bibtex',
+    'sphinx_gallery.gen_gallery',
 ]
+
+# Executes every examples/plot_*.py at build time and renders its output. An
+# example that no longer runs fails the build, which is the point: the CI docs
+# job builds with -W.
+sphinx_gallery_conf = {
+    'examples_dirs': '../examples',
+    'gallery_dirs': 'auto_examples',
+    'filename_pattern': r'/plot_',
+    'download_all_examples': False,
+    'remove_config_comments': True,
+    'matplotlib_animations': False,
+}
 
 # Required by sphinxcontrib-bibtex >= 2.0; without it the build aborts with
 # "You must configure the bibtex_bibfiles setting".

@@ -14,6 +14,7 @@ Welcome to Pytorch Wavelets's documentation!
    dwt
    dtcwt
    scatternet
+   auto_examples/index
    speed
    functions
 

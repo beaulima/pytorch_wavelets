@@ -96,7 +96,7 @@ test-all: install ## Run every test, slow ones included
 	$(RUN) python -m pytest -m ''
 
 lint: env ## Run flake8 over the package
-	$(RUN) python -m flake8 pytorch_wavelets tests
+	$(RUN) python -m flake8 pytorch_wavelets tests examples
 
 docs: install ## Build the html documentation
 	$(RUN) sphinx-build -b html docs docs/_build/html

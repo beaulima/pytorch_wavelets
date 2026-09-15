@@ -93,7 +93,7 @@ jobs:
       # A full run against .flake8, which ignores two cosmetic classes the
       # codebase uses consistently (E226/E231 tight spacing) and nothing else.
       - name: Lint
-        run: flake8 --show-source pytorch_wavelets tests
+        run: flake8 --show-source pytorch_wavelets tests examples
 
   docs:
     runs-on: ubuntu-latest
