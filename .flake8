@@ -1,8 +1,12 @@
 [flake8]
-max-line-length = 88
+# 118 is the longest line in the tree; 120 leaves a little room without
+# demanding a reflow.
+max-line-length = 120
 exclude = .git,__pycache__,build,dist,docs,.make
-
 # E226: missing whitespace around arithmetic operator - the wavelet maths reads
 #       better tightly spaced (e.g. x[:,:,:L2]).
+# E231: missing whitespace after ',' - the same tight indexing style, used
+#       consistently across ~975 sites. Reflowing them would be a large diff
+#       with no behavioural value that conflicts with any upstream merge.
 # W503/W504: line break before/after binary operator - mutually exclusive.
-extend-ignore = E226,W503,W504
+extend-ignore = E226,E231,W503,W504

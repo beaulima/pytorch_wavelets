@@ -99,13 +99,13 @@ def test_fwd(J, o_dim):
     np.testing.assert_array_almost_equal(
         Yl.cpu(), yl, decimal=PRECISION_FLOAT)
     for i in range(len(yh)):
-        for l in range(6):
-            ours_r = np.take(Yh[i][...,0].cpu().numpy(), l, o_dim)
-            ours_i = np.take(Yh[i][...,1].cpu().numpy(), l, o_dim)
+        for orient in range(6):
+            ours_r = np.take(Yh[i][...,0].cpu().numpy(), orient, o_dim)
+            ours_i = np.take(Yh[i][...,1].cpu().numpy(), orient, o_dim)
             np.testing.assert_array_almost_equal(
-                ours_r, yh[i][:,:,l].real, decimal=PRECISION_FLOAT)
+                ours_r, yh[i][:,:,orient].real, decimal=PRECISION_FLOAT)
             np.testing.assert_array_almost_equal(
-                ours_i, yh[i][:,:,l].imag, decimal=PRECISION_FLOAT)
+                ours_i, yh[i][:,:,orient].imag, decimal=PRECISION_FLOAT)
 
 
 @pytest.mark.parametrize("J, o_dim", [
@@ -126,13 +126,13 @@ def test_fwd_double(J, o_dim):
     np.testing.assert_array_almost_equal(
         Yl.cpu(), yl, decimal=PRECISION_DOUBLE)
     for i in range(len(yh)):
-        for l in range(6):
-            ours_r = np.take(Yh[i][...,0].cpu().numpy(), l, o_dim)
-            ours_i = np.take(Yh[i][...,1].cpu().numpy(), l, o_dim)
+        for orient in range(6):
+            ours_r = np.take(Yh[i][...,0].cpu().numpy(), orient, o_dim)
+            ours_i = np.take(Yh[i][...,1].cpu().numpy(), orient, o_dim)
             np.testing.assert_array_almost_equal(
-                ours_r, yh[i][:,:,l].real, decimal=PRECISION_DOUBLE)
+                ours_r, yh[i][:,:,orient].real, decimal=PRECISION_DOUBLE)
             np.testing.assert_array_almost_equal(
-                ours_i, yh[i][:,:,l].imag, decimal=PRECISION_DOUBLE)
+                ours_i, yh[i][:,:,orient].imag, decimal=PRECISION_DOUBLE)
 
 
 @pytest.mark.parametrize("J, o_dim", [
@@ -155,13 +155,13 @@ def test_fwd_skip_hps(J, o_dim):
         if hps[j]:
             assert Yh[j].shape == torch.Size([])
         else:
-            for l in range(6):
-                ours_r = np.take(Yh[j][...,0].cpu().numpy(), l, o_dim)
-                ours_i = np.take(Yh[j][...,1].cpu().numpy(), l, o_dim)
+            for orient in range(6):
+                ours_r = np.take(Yh[j][...,0].cpu().numpy(), orient, o_dim)
+                ours_i = np.take(Yh[j][...,1].cpu().numpy(), orient, o_dim)
                 np.testing.assert_array_almost_equal(
-                    ours_r, yh[j][:,:,l].real, decimal=PRECISION_FLOAT)
+                    ours_r, yh[j][:,:,orient].real, decimal=PRECISION_FLOAT)
                 np.testing.assert_array_almost_equal(
-                    ours_i, yh[j][:,:,l].imag, decimal=PRECISION_FLOAT)
+                    ours_i, yh[j][:,:,orient].imag, decimal=PRECISION_FLOAT)
 
 
 @pytest.mark.parametrize("scales", [
@@ -205,13 +205,13 @@ def test_fwd_ri_dim(o_dim, ri_dim):
     for i in range(len(yh)):
         ours_r = np.take(Yh[i].cpu().numpy(), 0, ri_dim)
         ours_i = np.take(Yh[i].cpu().numpy(), 1, ri_dim)
-        for l in range(6):
-            ours = np.take(ours_r, l, o_dim)
+        for orient in range(6):
+            ours = np.take(ours_r, orient, o_dim)
             np.testing.assert_array_almost_equal(
-                ours, yh[i][:,:,l].real, decimal=PRECISION_FLOAT)
-            ours = np.take(ours_i, l, o_dim)
+                ours, yh[i][:,:,orient].real, decimal=PRECISION_FLOAT)
+            ours = np.take(ours_i, orient, o_dim)
             np.testing.assert_array_almost_equal(
-                ours, yh[i][:,:,l].imag, decimal=PRECISION_FLOAT)
+                ours, yh[i][:,:,orient].imag, decimal=PRECISION_FLOAT)
 
 
 @pytest.mark.parametrize("scales", [
@@ -240,8 +240,8 @@ def test_bwd_include_scale(scales):
 ])
 def test_inv(J, o_dim):
     Yl = 100*np.random.randn(3, 5, 64, 64)
-    Yhr = [[np.random.randn(3, 5, 2**j, 2**j) for l in range(6)] for j in range(4+J,4,-1)]
-    Yhi = [[np.random.randn(3, 5, 2**j, 2**j) for l in range(6)] for j in range(4+J,4,-1)]
+    Yhr = [[np.random.randn(3, 5, 2**j, 2**j) for _ in range(6)] for j in range(4+J,4,-1)]
+    Yhi = [[np.random.randn(3, 5, 2**j, 2**j) for _ in range(6)] for j in range(4+J,4,-1)]
     Yh1 = [np.stack(r, axis=2) + 1j*np.stack(i, axis=2) for r, i in zip(Yhr, Yhi)]
     Yh2 = [np.stack((np.stack(r, axis=o_dim), np.stack(i, axis=o_dim)), axis=-1)
            for r, i in zip(Yhr, Yhi)]
@@ -263,8 +263,8 @@ def test_inv(J, o_dim):
 def test_inv_skip_hps(J, o_dim):
     hps = np.random.binomial(size=J, n=1,p=0.5).astype('bool')
     Yl = 100*np.random.randn(3, 5, 64, 64)
-    Yhr = [[np.random.randn(3, 5, 2**j, 2**j) for l in range(6)] for j in range(4+J,4,-1)]
-    Yhi = [[np.random.randn(3, 5, 2**j, 2**j) for l in range(6)] for j in range(4+J,4,-1)]
+    Yhr = [[np.random.randn(3, 5, 2**j, 2**j) for _ in range(6)] for j in range(4+J,4,-1)]
+    Yhi = [[np.random.randn(3, 5, 2**j, 2**j) for _ in range(6)] for j in range(4+J,4,-1)]
     Yh1 = [np.stack(r, axis=2) + 1j*np.stack(i, axis=2) for r, i in zip(Yhr, Yhi)]
     Yh2 = [np.stack((np.stack(r, axis=o_dim), np.stack(i, axis=o_dim)), axis=-1)
            for r, i in zip(Yhr, Yhi)]

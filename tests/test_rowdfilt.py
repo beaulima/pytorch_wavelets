@@ -31,8 +31,8 @@ def setup_module():
     ch = barbara_t.shape[1]
 
     # Some useful functions
-    ref_rowdfilt = lambda x, ha, hb: np.stack(
-        [np_coldfilt(s.T, ha, hb).T for s in x], axis=0)
+    def ref_rowdfilt(x, ha, hb):
+        return np.stack([np_coldfilt(s.T, ha, hb).T for s in x], axis=0)
 
 
 def test_barbara_loaded():

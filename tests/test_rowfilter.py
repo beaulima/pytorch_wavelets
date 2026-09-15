@@ -30,8 +30,8 @@ def setup_module():
     ch = barbara_t.shape[1]
 
     # Some useful functions
-    ref_rowfilter = lambda x, h: np.stack(
-        [np_colfilter(s.T, h).T for s in x], axis=0)
+    def ref_rowfilter(x, h):
+        return np.stack([np_colfilter(s.T, h).T for s in x], axis=0)
 
 
 def test_barbara_loaded():

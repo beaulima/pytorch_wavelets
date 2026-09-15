@@ -163,15 +163,15 @@ def reflect(x, minx, maxx):
     return np.array(out, dtype=x.dtype)
 
 
-def symm_pad_1d(l, m):
+def symm_pad_1d(length, m):
     """ Creates indices for symmetric padding. Works for 1-D.
 
-    Inptus:
-        l (int): size of input
+    Inputs:
+        length (int): size of input
         m (int): size of filter
     """
-    xe = reflect(np.arange(-m, l+m, dtype='int32'), -0.5, l-0.5)
-    return xe
+    return reflect(np.arange(-m, length+m, dtype='int32'),
+                   -0.5, length-0.5)
 
 
 # note that this decorator ignores **kwargs

@@ -8,7 +8,7 @@ import torch.nn as nn
 import pytorch_wavelets.dwt.transform2d as dwt
 import pytorch_wavelets.dwt.lowlevel as lowlevel
 import pytorch_wavelets.dtcwt.lowlevel2 as lowlevel2
-from pytorch_wavelets.dtcwt.coeffs import level1, qshift
+from pytorch_wavelets.dtcwt.coeffs import level1
 
 parser = argparse.ArgumentParser(
     'Profile the forward and inverse dtcwt in pytorch')
@@ -163,7 +163,7 @@ if __name__ == "__main__":
 
     if ICIP:
         n, _, c, h, w, _ = yh[0].shape
-        mag = torch.sqrt(yh[0][...,0] **2 + yh[0][...,1]**2 +0.01) - 0.1
+        mag = torch.sqrt(yh[0][..., 0]**2 + yh[0][..., 1]**2 + 0.01) - 0.1
         mag = mag.view(n, 6*c, h, w)
         gain1 = nn.Conv2d(6*c, c, 3, padding=1).cuda()
         y = gain1(mag)

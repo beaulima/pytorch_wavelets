@@ -224,4 +224,3 @@ def test_gradients_inv(wave, J, mode):
     # Test the bandpass
     for j in range(J):
         np.testing.assert_array_almost_equal(yh[j].grad.detach().cpu(), dyh[j].cpu(), decimal=PREC_FLT)
-
