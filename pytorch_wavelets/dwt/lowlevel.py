@@ -25,6 +25,31 @@ def roll(x, n, dim, make_even=False):
         return torch.cat((x[:,:,:,-n:], x[:,:,:,:-n+end]), dim=3)
 
 
+def _pad_index(length, before, after, mode):
+    """ Index array mapping each padded position back to a source sample.
+
+    Written as an index map rather than a call to F.pad because torch's
+    reflect padding refuses to pad by more than length - 1, which happens
+    whenever the wavelet is longer than the signal. Reflection is periodic, so
+    the modular form in :py:func:`pytorch_wavelets.utils.reflect` handles any
+    amount.
+    """
+    if mode == 'symmetric':
+        # Half-sample symmetry: the edge sample is repeated. Period 2*length.
+        return reflect(np.arange(-before, length+after, dtype='int32'),
+                       -0.5, length-0.5)
+    elif mode == 'reflect':
+        # Whole-sample symmetry: the edge sample is not repeated. Period
+        # 2*(length-1), which degenerates for a single sample.
+        if length == 1:
+            return np.zeros(before + 1 + after, dtype='int32')
+        return reflect(np.arange(-before, length+after, dtype='int32'),
+                       0, length-1)
+    elif mode in ('periodic', 'periodization', 'per'):
+        return np.pad(np.arange(length), (before, after), mode='wrap')
+    raise ValueError("Unkown pad type: {}".format(mode))
+
+
 def mypad(x, pad, mode='constant', value=0):
     """ Function to do numpy like padding on tensors. Only works for 2-D
     padding.
@@ -32,56 +57,26 @@ def mypad(x, pad, mode='constant', value=0):
     Inputs:
         x (tensor): tensor to pad
         pad (tuple): tuple of (left, right, top, bottom) pad sizes
-        mode (str): 'symmetric', 'periodic' (aka 'periodization'/'per'),
-            'constant', 'reflect', 'replicate', or 'zero'. The padding
-            technique.
+        mode (str): 'symmetric', 'reflect', 'periodic' (aka
+            'periodization'/'per'), 'constant', 'replicate', or 'zero'. The
+            padding technique.
     """
-    if mode == 'symmetric':
+    if mode in ('symmetric', 'reflect', 'periodic', 'periodization', 'per'):
         # Vertical only
         if pad[0] == 0 and pad[1] == 0:
-            m1, m2 = pad[2], pad[3]
-            l = x.shape[-2]
-            xe = reflect(np.arange(-m1, l+m2, dtype='int32'), -0.5, l-0.5)
-            return x[:,:,xe]
-        # horizontal only
-        elif pad[2] == 0 and pad[3] == 0:
-            m1, m2 = pad[0], pad[1]
-            l = x.shape[-1]
-            xe = reflect(np.arange(-m1, l+m2, dtype='int32'), -0.5, l-0.5)
-            return x[:,:,:,xe]
-        # Both
-        else:
-            m1, m2 = pad[0], pad[1]
-            l1 = x.shape[-1]
-            xe_row = reflect(np.arange(-m1, l1+m2, dtype='int32'), -0.5, l1-0.5)
-            m1, m2 = pad[2], pad[3]
-            l2 = x.shape[-2]
-            xe_col = reflect(np.arange(-m1, l2+m2, dtype='int32'), -0.5, l2-0.5)
-            i, j = np.meshgrid(xe_col, xe_row, indexing='ij')
-            return x[:,:,i,j]
-    elif mode == 'periodic' or mode == 'periodization' or mode == 'per':
-        # For an undecimated (a trous) transform, periodization is just wrap
-        # padding, so the three spellings name the same operation here.
-        # Vertical only
-        if pad[0] == 0 and pad[1] == 0:
-            xe = np.arange(x.shape[-2])
-            xe = np.pad(xe, (pad[2], pad[3]), mode='wrap')
-            return x[:,:,xe]
+            xe = _pad_index(x.shape[-2], pad[2], pad[3], mode)
+            return x[:, :, xe]
         # Horizontal only
         elif pad[2] == 0 and pad[3] == 0:
-            xe = np.arange(x.shape[-1])
-            xe = np.pad(xe, (pad[0], pad[1]), mode='wrap')
-            return x[:,:,:,xe]
+            xe = _pad_index(x.shape[-1], pad[0], pad[1], mode)
+            return x[:, :, :, xe]
         # Both
         else:
-            xe_col = np.arange(x.shape[-2])
-            xe_col = np.pad(xe_col, (pad[2], pad[3]), mode='wrap')
-            xe_row = np.arange(x.shape[-1])
-            xe_row = np.pad(xe_row, (pad[0], pad[1]), mode='wrap')
+            xe_col = _pad_index(x.shape[-2], pad[2], pad[3], mode)
+            xe_row = _pad_index(x.shape[-1], pad[0], pad[1], mode)
             i, j = np.meshgrid(xe_col, xe_row, indexing='ij')
-            return x[:,:,i,j]
-
-    elif mode == 'constant' or mode == 'reflect' or mode == 'replicate':
+            return x[:, :, i, j]
+    elif mode == 'constant' or mode == 'replicate':
         return F.pad(x, pad, mode, value)
     elif mode == 'zero':
         return F.pad(x, pad)

@@ -341,3 +341,51 @@ def test_separate_row_col_filters_roundtrip(col_wave, row_wave):
 
     np.testing.assert_allclose(
         ifm(xfm(x_t)).cpu().numpy(), x_t.cpu().numpy(), atol=1e-4)
+
+
+@pytest.mark.parametrize("wave", ['db3', 'db6', 'coif2'])
+@pytest.mark.parametrize("size", [6, 8, 11, 32])
+def test_reflect_with_filters_longer_than_the_signal(wave, size):
+    """ Regression: mypad delegated reflect padding to F.pad, which refuses to
+    pad by more than length - 1. Any wavelet longer than the signal - db6 on a
+    32x32 image after two levels, say - raised RuntimeError. Reflection is
+    periodic, so an index map handles any amount.
+    """
+    np.random.seed(0)
+    x = np.random.randn(size, size)
+    x_t = torch.tensor(x, dtype=torch.float32, device=dev)[None, None]
+
+    yl, yh = DWTForward(J=1, wave=wave, mode='reflect').to(dev)(x_t)
+    cA, (cH, cV, cD) = pywt.dwt2(x, wave, mode='reflect')
+
+    np.testing.assert_allclose(yl[0, 0].cpu().numpy(), cA, atol=1e-4)
+    np.testing.assert_allclose(yh[0][0, 0, 0].cpu().numpy(), cH, atol=1e-4)
+    np.testing.assert_allclose(yh[0][0, 0, 1].cpu().numpy(), cV, atol=1e-4)
+    np.testing.assert_allclose(yh[0][0, 0, 2].cpu().numpy(), cD, atol=1e-4)
+
+
+@pytest.mark.parametrize("length", [2, 5, 8])
+def test_mypad_reflect_matches_f_pad(length):
+    """ The index map must reproduce F.pad(mode='reflect') exactly wherever
+    F.pad is willing to run, so switching away from it changes nothing for the
+    cases that already worked. """
+    from pytorch_wavelets.dwt.lowlevel import mypad
+    x = torch.arange(float(length)).reshape(1, 1, 1, length)
+    for before in range(length):
+        for after in range(length):
+            pad = (before, after, 0, 0)
+            expected = torch.nn.functional.pad(x, pad, mode='reflect')
+            torch.testing.assert_close(mypad(x, pad=pad, mode='reflect'),
+                                       expected)
+
+
+def test_mypad_reflect_beyond_f_pad_limit():
+    """ And it keeps going past the point where F.pad gives up. """
+    from pytorch_wavelets.dwt.lowlevel import mypad
+    x = torch.arange(8.).reshape(1, 1, 1, 8)
+    out = mypad(x, pad=(11, 12, 0, 0), mode='reflect')
+    assert out.shape[-1] == 8 + 11 + 12
+    # every value still comes from the original signal
+    assert out.min() >= 0 and out.max() <= 7
+    # whole-sample symmetry: index -1 reflects onto 1, not 0
+    assert out[0, 0, 0, 10].item() == 1.0
