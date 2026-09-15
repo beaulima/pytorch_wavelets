@@ -11,6 +11,7 @@ Run ``make notebooks`` after changing an example. CI checks that the two are in
 step and fails if they are not.
 """
 import argparse
+import json
 import pathlib
 import sys
 
@@ -41,11 +42,17 @@ def main(argv=None):
         python_to_jupyter_cli([str(script)])
         produced = script.with_suffix('.ipynb')
         target = NOTEBOOKS / produced.name
-        new = produced.read_text()
+        # Canonicalise: the converter does not guarantee a stable key order
+        # between runs, and comparing raw bytes would report that as drift.
+        new = json.dumps(json.loads(produced.read_text()),
+                         indent=1, sort_keys=True) + '\n'
         produced.unlink()
 
         if args.check:
-            if not target.exists() or target.read_text() != new:
+            current = (json.dumps(json.loads(target.read_text()), indent=1,
+                                  sort_keys=True) + '\n'
+                       if target.exists() else None)
+            if current != new:
                 stale.append(target.name)
         else:
             target.write_text(new)
