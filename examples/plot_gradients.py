@@ -5,19 +5,54 @@ Optimising through the transform
 Every transform here is an ordinary pytorch module, so a loss computed on
 wavelet coefficients can be differentiated back to the pixels. That is what
 this package is for: the numpy implementations cannot do it.
-
-The example solves a small variational denoising problem - find the image that
-stays close to the noisy one while having sparse wavelet coefficients - by
-gradient descent rather than by thresholding, and then checks that the
-gradients are the real thing.
 """
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import skimage
 import torch
 from skimage import data
+from torch.autograd import gradcheck
 
+import pytorch_wavelets
 from pytorch_wavelets import DWTForward
+from pytorch_wavelets.dwt.lowlevel import AFB2D, mode_to_int
+
+# %%
+# Objective
+# ---------
+#
+# Demonstrate that a loss computed on wavelet coefficients can be optimised
+# back to the pixels, by solving a small variational denoising problem, and
+# then verify the gradients themselves against finite differences rather than
+# assuming they are right.
+
+# %%
+# Reproducibility
+# ---------------
+#
+# Versions and the random seed, printed so that any number below can be checked
+# against a rerun. Following the reproducibility conventions in Rule et al.
+# (2019), every figure and every quantity here is produced by the code above
+# it - nothing is quoted from a previous run.
+
+SEED = 0
+torch.manual_seed(SEED)
+rng = np.random.default_rng(SEED)
+
+for name, mod in [('pytorch_wavelets', pytorch_wavelets), ('torch', torch),
+                  ('numpy', np), ('scikit-image', skimage),
+                  ('matplotlib', matplotlib)]:
+    print('%-16s %s' % (name, mod.__version__))
+print('%-16s %d' % ('seed', SEED))
+
+# %%
+# Data
+# ----
+#
+# The same 256x256 crop of ``camera`` and the same noise model as
+# :doc:`plot_denoising`, so the two results can be compared directly.
 
 SIGMA = 0.1
 
@@ -26,15 +61,20 @@ def psnr(a, b):
     return 10 * np.log10(1.0 / ((a - b) ** 2).mean().item())
 
 
-rng = np.random.RandomState(0)
 clean = torch.tensor(data.camera().astype('float32')[:256, :256] / 255.)
 clean = clean[None, None]
-noisy = clean + torch.tensor(rng.randn(*clean.shape).astype('float32')) * SIGMA
+noisy = clean + torch.tensor(
+    rng.standard_normal(clean.shape, dtype='float32')) * SIGMA
 
 # %%
+# Method
+# ------
+#
 # Minimise :math:`\\|x - y\\|^2 + \\lambda \\sum |W x|` over the image
-# :math:`x`, where :math:`W` is the wavelet transform. Nothing here is
-# special-cased for wavelets - it is a loss, a parameter and an optimiser.
+# :math:`x`, where :math:`W` is the wavelet transform and :math:`y` the noisy
+# observation. The first term keeps the result near what was measured, the
+# second prefers images with few large wavelet coefficients. Nothing here is
+# special-cased for wavelets: it is a loss, a parameter and an optimiser.
 
 xfm = DWTForward(J=3, wave='db4', mode='periodization')
 x = noisy.clone().requires_grad_(True)
@@ -52,17 +92,12 @@ for step in range(200):
     if step % 10 == 0:
         history.append((step, psnr(x.detach(), clean)))
 
+# %%
+# Results
+# -------
+
 print('noisy:     %.2f dB' % psnr(noisy, clean))
 print('optimised: %.2f dB' % psnr(x.detach(), clean))
-
-# %%
-# For comparison, soft thresholding the same transform reaches 26.6 dB on this
-# image (see :doc:`plot_denoising`). Solving the problem properly rather than
-# in one shot is worth about a decibel here - and unlike thresholding it
-# extends to any differentiable objective, which is the point.
-
-# %%
-# The result, and how it got there.
 
 fig, axes = plt.subplots(1, 3, figsize=(11, 3.7))
 for ax, (name, img) in zip(axes, [('clean', clean), ('noisy', noisy),
@@ -86,19 +121,23 @@ ax.grid(alpha=0.3)
 plt.tight_layout()
 
 # %%
-# Are the gradients right?
-# ------------------------
+# Soft thresholding the same transform reaches 26.6 dB on this image (see
+# :doc:`plot_denoising`). Solving the problem rather than shrinking in one shot
+# is worth about a decibel here, and unlike thresholding it extends to any
+# differentiable objective - which is the point.
+
+# %%
+# Verification: are the gradients right?
+# --------------------------------------
 #
 # Worth checking rather than assuming: pytorch will happily backpropagate
 # through a custom Function whose backward pass is wrong. ``gradcheck``
-# compares the analytical gradient against finite differences, in double
-# precision on a small input.
+# compares the analytical gradient against central finite differences, in
+# double precision on a small input.
 #
-# Set the default dtype before building the transform, so the filter
-# coefficients themselves are float64.
-
-from torch.autograd import gradcheck  # noqa: E402
-from pytorch_wavelets.dwt.lowlevel import AFB2D, mode_to_int  # noqa: E402
+# The default dtype is set before building the transform so that the filter
+# coefficients themselves are float64; converting the module afterwards would
+# leave them rounded to float32.
 
 old = torch.get_default_dtype()
 torch.set_default_dtype(torch.float64)
@@ -114,9 +153,31 @@ finally:
     torch.set_default_dtype(old)
 
 # %%
-# All four padding schemes pass. That is worth stating because it was not
-# always true: the backward pass used to apply a synthesis filter bank to the
+# Discussion
+# ----------
+#
+# All four padding schemes pass, which is worth stating because it was not
+# always so. The backward pass used to apply a synthesis filter bank to the
 # incoming gradient, which is the exact adjoint only for zero and periodic
-# extension. Under ``symmetric`` and ``reflect`` padding the adjoint also has
-# to fold the boundary extension back onto the samples it was copied from, and
-# without that the gradient was wrong well away from the edges.
+# extension. Under ``symmetric`` and ``reflect`` padding the adjoint must also
+# fold the boundary extension back onto the samples it was copied from; without
+# that step the gradient was wrong in a band along the border whose width
+# scales with the filter length.
+#
+# The variational result above is not a claim that this beats a well-tuned
+# shrinkage rule in general - it is one image, one noise realisation and one
+# choice of :math:`\\lambda`. What it does show is that the optimisation
+# machinery works end to end.
+
+# %%
+# References
+# ----------
+#
+# - D. L. Donoho and I. M. Johnstone, "Ideal spatial adaptation by wavelet
+#   shrinkage", *Biometrika*, 81(3):425-455, 1994.
+# - S. Mallat, "A theory for multiresolution signal decomposition: the wavelet
+#   representation", *IEEE Transactions on Pattern Analysis and Machine
+#   Intelligence*, 11(7):674-693, 1989.
+# - A. Rule et al., "Ten simple rules for writing and sharing computational
+#   analyses in Jupyter Notebooks", *PLOS Computational Biology*,
+#   15(7):e1007007, 2019.

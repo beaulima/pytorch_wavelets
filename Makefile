@@ -30,7 +30,7 @@ ENV_STAMP      = $(CACHE_DIR)/env.$(ENV_NAME).stamp
 INSTALL_STAMP  = $(CACHE_DIR)/install.$(ENV_NAME).stamp
 
 .DEFAULT_GOAL := help
-.PHONY: help env env-update install dev test test-cov test-slow test-all lint docs build clean clean-build clean-env
+.PHONY: help env env-update install dev test test-cov test-slow test-all lint notebooks check-notebooks docs build clean clean-build clean-env
 
 help: ## Show this help
 	@echo "pytorch_wavelets - available targets:"
@@ -97,6 +97,12 @@ test-all: install ## Run every test, slow ones included
 
 lint: env ## Run flake8 over the package
 	$(RUN) python -m flake8 pytorch_wavelets tests examples
+
+notebooks: install ## Regenerate notebooks/ from the examples/ scripts
+	$(RUN) python tools/make_notebooks.py
+
+check-notebooks: install ## Fail if notebooks/ has drifted from examples/
+	$(RUN) python tools/make_notebooks.py --check
 
 docs: install ## Build the html documentation
 	$(RUN) sphinx-build -b html docs docs/_build/html

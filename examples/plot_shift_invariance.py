@@ -11,11 +11,14 @@ sliding a window across a larger image would change the content as well as
 its position, and that change swamps the effect.
 """
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import skimage
 import torch
 from skimage import data
 
+import pytorch_wavelets
 from pytorch_wavelets import DWTForward, DTCWTForward, SWTForward
 
 SHIFTS = 16
@@ -36,6 +39,44 @@ def spread(values):
 
 x = to_tensor(data.camera())
 batch = torch.cat([torch.roll(x, s, dims=-1) for s in range(SHIFTS)], dim=0)
+
+# %%
+# Objective
+# ---------
+#
+# Measure what a one pixel translation does to each transform in this package,
+# and at what cost in redundancy. The experiment uses circular shifts with
+# periodization padding so that the image content is identical at every offset;
+# sliding a window over a larger image would change the content as well as its
+# position, and that change dominates the effect being measured.
+
+# %%
+# Reproducibility
+# ---------------
+#
+# Versions and the random seed, printed so that any number below can be checked
+# against a rerun. Following the reproducibility conventions in Rule et al.
+# (2019), every figure and every quantity in this notebook is produced by the
+# code above it - nothing is quoted from a previous run.
+
+SEED = 0
+torch.manual_seed(SEED)
+rng = np.random.default_rng(SEED)
+
+for name, mod in [('pytorch_wavelets', pytorch_wavelets), ('torch', torch),
+                  ('numpy', np), ('scikit-image', skimage),
+                  ('matplotlib', matplotlib)]:
+    print('%-16s %s' % (name, mod.__version__))
+print('%-16s %d' % ('seed', SEED))
+
+# %%
+# Data
+# ----
+#
+# A 256x256 crop of ``camera`` from ``skimage.data``, converted to float in
+# [0, 1]. Sixteen circularly shifted copies are stacked into one batch, so
+# every transform sees exactly the same content at sixteen offsets.
+
 
 # %%
 # The stationary transform is exactly invariant
@@ -129,3 +170,13 @@ plt.tight_layout()
 # ``tests/Measure of Stability.ipynb`` in this repository does: it draws 1000
 # samples, applies shifts, noise and deformations, and reports the distance
 # between scattering outputs. The numbers in :doc:`../scatternet` come from it.
+
+# %%
+# References
+# ----------
+#
+# - N. Kingsbury, "Complex wavelets for shift invariant analysis and filtering
+#   of signals", *Applied and Computational Harmonic Analysis*,
+#   10(3):234-253, 2001.
+# - I. W. Selesnick, R. G. Baraniuk and N. G. Kingsbury, "The dual-tree complex
+#   wavelet transform", *IEEE Signal Processing Magazine*, 2005.

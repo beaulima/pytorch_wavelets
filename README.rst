@@ -18,7 +18,9 @@ The full documentation is also available `here`__, including a gallery of
 worked examples covering the DWT basics, the DTCWT's directional selectivity,
 shift invariance, denoising and optimising through the transform. Every
 example is executed when the documentation is built, and can be downloaded as
-a script or a notebook.
+a script or a notebook. The same demos are committed as notebooks under
+``notebooks/``, generated from the gallery scripts and checked in CI to be in
+step with them.
 
 __ http://pytorch-wavelets.readthedocs.io/
 

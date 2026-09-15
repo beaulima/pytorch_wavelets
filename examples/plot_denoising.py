@@ -11,12 +11,53 @@ It also shows why the redundancy of the stationary transform is worth paying
 for, which is the counterpart to :doc:`plot_shift_invariance`.
 """
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import skimage
 import torch
 from skimage import data
 
+import pytorch_wavelets
 from pytorch_wavelets import (DWTForward, DWTInverse, SWTForward, SWTInverse)
+
+# %%
+# Objective
+# ---------
+#
+# Compare decimated and undecimated wavelet shrinkage on the same image, noise
+# realisation and threshold, and report PSNR over a range of thresholds rather
+# than at a single setting. Wavelet shrinkage is due to Donoho and Johnstone
+# (1994); the undecimated variant is the cycle-spinning idea of Coifman and
+# Donoho (1995), obtained here directly from the stationary transform.
+
+# %%
+# Reproducibility
+# ---------------
+#
+# Versions and the random seed, printed so that any number below can be checked
+# against a rerun. Following the reproducibility conventions in Rule et al.
+# (2019), every figure and every quantity in this notebook is produced by the
+# code above it - nothing is quoted from a previous run.
+
+SEED = 0
+torch.manual_seed(SEED)
+rng = np.random.default_rng(SEED)
+
+for name, mod in [('pytorch_wavelets', pytorch_wavelets), ('torch', torch),
+                  ('numpy', np), ('scikit-image', skimage),
+                  ('matplotlib', matplotlib)]:
+    print('%-16s %s' % (name, mod.__version__))
+print('%-16s %d' % ('seed', SEED))
+
+# %%
+# Data
+# ----
+#
+# A 256x256 crop of ``camera`` from ``skimage.data``, scaled to [0, 1], plus
+# additive white Gaussian noise of known standard deviation drawn from a seeded
+# generator. Knowing sigma exactly is what lets the threshold be set in units
+# of it.
 
 SIGMA = 0.1
 WAVE = 'db4'
@@ -32,12 +73,10 @@ def soft(t, thresh):
     return torch.sign(t) * torch.clamp(t.abs() - thresh, min=0)
 
 
-rng = np.random.RandomState(0)
 clean = torch.tensor(data.camera().astype('float32')[:256, :256] / 255.)
 clean = clean[None, None]
-noisy = clean + torch.tensor(rng.randn(*clean.shape).astype('float32')) * SIGMA
+noisy = clean + torch.tensor(rng.standard_normal(clean.shape, dtype='float32')) * SIGMA
 print('noisy: %.2f dB' % psnr(noisy, clean))
-
 # %%
 # Decimated: threshold the bandpasses, leave the lowpass alone
 # ------------------------------------------------------------
@@ -123,3 +162,13 @@ plt.tight_layout()
 
 print('best DWT: %.2f dB   best SWT: %.2f dB'
       % (max(curves['DWT']), max(curves['SWT'])))
+
+# %%
+# References
+# ----------
+#
+# - D. L. Donoho and I. M. Johnstone, "Ideal spatial adaptation by wavelet
+#   shrinkage", *Biometrika*, 81(3):425-455, 1994.
+# - R. R. Coifman and D. L. Donoho, "Translation-invariant de-noising", in
+#   *Wavelets and Statistics*, Lecture Notes in Statistics 103, pp. 125-150,
+#   Springer, 1995.

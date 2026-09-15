@@ -11,11 +11,14 @@ and keeps them apart.
 This example measures that rather than asserting it.
 """
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import skimage
 import torch
 from skimage import data
 
+import pytorch_wavelets
 from pytorch_wavelets import DWTForward, DTCWTForward
 
 ANGLES = [15, 45, 75, 105, 135, 165]
@@ -35,6 +38,46 @@ def band_energy(coeffs):
     """Fraction of bandpass energy in each orientation, at the finest scale."""
     e = (coeffs ** 2).sum(dim=tuple(range(1, coeffs.ndim))).numpy()
     return e / e.sum()
+
+
+# %%
+# Objective
+# ---------
+#
+# Quantify a claim usually made in words: that the DTCWT resolves orientation
+# where the separable DWT cannot. The measurement is the share of finest-scale
+# bandpass energy falling in each subband, for three images whose dominant
+# structure runs in known directions. If the claim holds, images with different
+# orientation content should produce different, interpretable signatures under
+# the DTCWT and near-indistinguishable ones under the DWT.
+
+# %%
+# Reproducibility
+# ---------------
+#
+# Versions and the random seed, printed so that any number below can be checked
+# against a rerun. Following the reproducibility conventions in Rule et al.
+# (2019), every figure and every quantity in this notebook is produced by the
+# code above it - nothing is quoted from a previous run.
+
+SEED = 0
+torch.manual_seed(SEED)
+rng = np.random.default_rng(SEED)
+
+for name, mod in [('pytorch_wavelets', pytorch_wavelets), ('torch', torch),
+                  ('numpy', np), ('scikit-image', skimage),
+                  ('matplotlib', matplotlib)]:
+    print('%-16s %s' % (name, mod.__version__))
+print('%-16s %d' % ('seed', SEED))
+
+# %%
+# Data
+# ----
+#
+# ``brick`` and ``text`` from ``skimage.data``, plus a checkerboard generated
+# below so that the build never has to fetch anything. All three are converted
+# to float in [0, 1] and cropped to a multiple of eight, since a three level
+# transform halves the size three times.
 
 
 # %%
@@ -135,3 +178,13 @@ plt.tight_layout()
 # complex subband oscillate, but their magnitude is a smooth envelope of where
 # that orientation has energy. It is also nearly shift invariant, which the
 # next example is about.
+
+# %%
+# References
+# ----------
+#
+# - I. W. Selesnick, R. G. Baraniuk and N. G. Kingsbury, "The dual-tree complex
+#   wavelet transform", *IEEE Signal Processing Magazine*, 2005.
+# - N. Kingsbury, "Complex wavelets for shift invariant analysis and filtering
+#   of signals", *Applied and Computational Harmonic Analysis*,
+#   10(3):234-253, 2001.

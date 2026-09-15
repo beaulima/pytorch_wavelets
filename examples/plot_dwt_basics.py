@@ -8,11 +8,14 @@ gradients flow through it - which is the reason for doing wavelets in pytorch
 rather than in numpy.
 """
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import skimage
 import torch
 from skimage import data
 
+import pytorch_wavelets
 from pytorch_wavelets import DWTForward, DWTInverse
 
 
@@ -23,6 +26,43 @@ def to_tensor(im):
     im = im.astype('float32')
     im = (im - im.min()) / (np.ptp(im) + 1e-9)
     return torch.tensor(im)[None, None]
+
+
+# %%
+# Objective
+# ---------
+#
+# Establish what this package's DWT returns and how to read it: the shape and
+# ordering of the coefficients, which padding schemes reconstruct exactly, and
+# that the transform is an ordinary batched, differentiable pytorch module.
+# Later examples build on these conventions.
+
+# %%
+# Reproducibility
+# ---------------
+#
+# Versions and the random seed, printed so that any number below can be checked
+# against a rerun. Following the reproducibility conventions in Rule et al.
+# (2019), every figure and every quantity in this notebook is produced by the
+# code above it - nothing is quoted from a previous run.
+
+SEED = 0
+torch.manual_seed(SEED)
+rng = np.random.default_rng(SEED)
+
+for name, mod in [('pytorch_wavelets', pytorch_wavelets), ('torch', torch),
+                  ('numpy', np), ('scikit-image', skimage),
+                  ('matplotlib', matplotlib)]:
+    print('%-16s %s' % (name, mod.__version__))
+print('%-16s %d' % ('seed', SEED))
+
+# %%
+# Data
+# ----
+#
+# ``camera`` and ``astronaut`` from ``skimage.data``, which ships them with the
+# library under documented provenance. Both are converted to float in [0, 1].
+# No image files are committed to this repository.
 
 
 # %%
@@ -118,3 +158,14 @@ try:
     print('float64 reconstruction error: %.2e' % (rec - x.double()).abs().max())
 finally:
     torch.set_default_dtype(old)
+
+# %%
+# References
+# ----------
+#
+# - S. Mallat, "A theory for multiresolution signal decomposition: the wavelet
+#   representation", *IEEE Transactions on Pattern Analysis and Machine
+#   Intelligence*, 11(7):674-693, 1989.
+# - A. Rule et al., "Ten simple rules for writing and sharing computational
+#   analyses in Jupyter Notebooks", *PLOS Computational Biology*,
+#   15(7):e1007007, 2019.

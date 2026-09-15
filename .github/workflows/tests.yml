@@ -117,3 +117,7 @@ jobs:
       # stay that way.
       - name: Build the docs
         run: sphinx-build -b html -W docs docs/_build/html
+
+      # notebooks/ is generated from examples/, so it can go stale silently.
+      - name: Check notebooks/ is in step with examples/
+        run: python tools/make_notebooks.py --check

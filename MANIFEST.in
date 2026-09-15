@@ -8,3 +8,6 @@ recursive-include tests *.py
 recursive-include tests *.npz
 recursive-include examples *.py
 include examples/README.txt
+recursive-include notebooks *.ipynb
+include notebooks/README.md
+include tools/make_notebooks.py
