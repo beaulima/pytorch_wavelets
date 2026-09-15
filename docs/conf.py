@@ -12,9 +12,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import re
+import sys
+
+sys.path.insert(0, os.path.abspath(os.pardir))
 
 
 # -- Project information -----------------------------------------------------
@@ -23,10 +25,17 @@ project = 'Pytorch Wavelets'
 copyright = '2018, Fergal Cotter'
 author = 'Fergal Cotter'
 
-# The short X.Y version
-version = ''
+# Read the version from the package rather than duplicating it here, so the
+# docs cannot drift out of sync with pytorch_wavelets/_version.py.
+_version_file = os.path.join(
+    os.path.dirname(__file__), os.pardir, 'pytorch_wavelets', '_version.py')
+_metadata = dict(re.findall(
+    r"__([a-z]+)__ = '([^']+)'", open(_version_file).read()))
+
 # The full version, including alpha/beta/rc tags
-release = '0.1.1'
+release = _metadata['version']
+# The short X.Y version
+version = '.'.join(release.split('.')[:2])
 
 
 # -- General configuration ---------------------------------------------------
@@ -46,6 +55,10 @@ extensions = [
     'sphinxcontrib.bibtex'
 ]
 
+# Required by sphinxcontrib-bibtex >= 2.0; without it the build aborts with
+# "You must configure the bibtex_bibfiles setting".
+bibtex_bibfiles = ['references.bib']
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -63,7 +76,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -90,7 +103,8 @@ html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# No custom static assets, and a non-existent entry warns.
+html_static_path = []
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.

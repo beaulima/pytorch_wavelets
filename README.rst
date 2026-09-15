@@ -3,10 +3,9 @@
 
 |build-status| |docs| |doi|
 
-.. |build-status| image:: https://travis-ci.org/fbcotter/pytorch_wavelets.png?branch=master
+.. |build-status| image:: https://github.com/fbcotter/pytorch_wavelets/actions/workflows/tests.yml/badge.svg?branch=master
     :alt: build status
-    :scale: 100%
-    :target: https://travis-ci.org/fbcotter/pytorch_wavelets
+    :target: https://github.com/fbcotter/pytorch_wavelets/actions/workflows/tests.yml
 
 .. |docs| image:: https://readthedocs.org/projects/pytorch-wavelets/badge/?version=latest
     :target: https://pytorch-wavelets.readthedocs.io/en/latest/?badge=latest
@@ -32,6 +31,25 @@ to the Morlet based scatternet in `KymatIO`__, but is roughly 10 times faster.
 If you use this repo, please cite my PhD thesis, chapter 3: https://doi.org/10.17863/CAM.53748.
 
 __ https://github.com/kymatio/kymatio
+
+Unreleased
+~~~~~~~~~~
+
+- Added the 2D stationary (undecimated) wavelet transform: ``SWTForward`` and
+  ``SWTInverse`` are now exported and documented, and the inverse is a real
+  undecimated reconstruction validated against ``pywt.iswt2``.
+- Added a ``separable`` flag to ``DWTForward``/``DWTInverse``, as the docs had
+  long advertised.
+- Fixed the gradients of the DWT for the ``symmetric`` and ``reflect`` padding
+  schemes, which were not the adjoint of the forward transform, and in
+  ``periodization`` mode for odd-length inputs.
+- Replaced the dead Travis config with a GitHub Actions workflow covering
+  Python 3.9 to 3.12, and the long gradchecks are now marked ``slow`` and run
+  in their own job rather than being skipped outright.
+- The ScatterNet filters are registered as buffers rather than
+  ``nn.Parameter(requires_grad=False)``, so they no longer appear in
+  ``.parameters()`` and an optimiser will not apply weight decay to them. The
+  ``state_dict`` keys are unchanged, so existing checkpoints keep loading.
 
 New in version 1.3.0
 ~~~~~~~~~~~~~~~~~~~~
@@ -128,19 +146,31 @@ for a 3 scale transform. The resulting speeds were:
 
 Installation
 ````````````
-The easiest way to install ``pytorch_wavelets`` is to clone the repo and pip install
-it. Later versions will be released on PyPi but the docs need to updated first::
+The recommended way is to use the provided ``Makefile``, which builds a
+self-contained conda/mamba environment (a `miniforge
+<https://github.com/conda-forge/miniforge>`_ install gives you both)::
 
     $ git clone https://github.com/fbcotter/pytorch_wavelets
     $ cd pytorch_wavelets
+    $ make dev
+
+``make dev`` creates the environment described in ``environment.yml``, installs
+``pytorch_wavelets`` into it in editable mode, and checks that it imports. The
+environment name and python version are configurable::
+
+    $ make dev ENV_NAME=pw-cuda PYTHON_VERSION=3.12
+
+Run ``make help`` for the full list of targets (``test``, ``test-cov``,
+``lint``, ``docs``, ``build``, ``clean``, ``clean-env``). A test suite is
+provided so that you may verify the code works on your system::
+
+    $ make test
+
+If you would rather manage the environment yourself, a plain pip install works
+too - the dependencies are declared in ``pyproject.toml``::
+
     $ pip install .
-
-(Although the `develop` command may be more useful if you intend to perform any
-significant modification to the library.) A test suite is provided so that you
-may verify the code works on your system::
-
-    $ pip install -r tests/requirements.txt
-    $ pytest tests/
+    $ pip install ".[test]" && pytest
 
 Example Use
 ```````````
@@ -232,9 +262,8 @@ attribute set to true.
 Provenance
 ~~~~~~~~~~
 Based on the Dual-Tree Complex Wavelet Transform Pack for MATLAB by Nick
-Kingsbury, Cambridge University. The original README can be found in
-ORIGINAL_README.txt.  This file outlines the conditions of use of the original
-MATLAB toolbox.
+Kingsbury, Cambridge University. The conditions of use of the original MATLAB
+toolbox are summarised in the ``LICENSE`` file at the root of this repo.
 
 Further information on the DT CWT can be obtained from papers
 downloadable from my website (given below). The best tutorial is in

@@ -1,11 +1,6 @@
 Introduction
 ============
 
-|Build Status|
-
-.. |Build Status| image:: https://travis-ci.org/fbcotter/pytorch_wavelets.png?branch=master
-    :target: https://travis-ci.org/fbcotter/pytorch_wavelets
-
 This package provides support for computing the 2D discrete wavelet and 
 the 2d dual-tree complex wavelet transforms, their inverses, and passing 
 gradients through both using pytorch.
@@ -13,11 +8,9 @@ gradients through both using pytorch.
 The implementation is designed to be used with batches of multichannel images.
 We use the standard pytorch implementation of having 'NCHW' data format.
 
-This repo originally was only for the use of the DTCWT, but I have added some DWT support. This is still in development,
-and has the following known issues:
-
-- Uses reflection padding instead of symmetric padding for the DWT
-- Doesn't compute the DWT separably, instead uses the full `N x N` kernel.
+This repo originally was only for the use of the DTCWT, but DWT support has
+since been added. The DWT is computed separably and supports the symmetric,
+reflect, zero and periodization padding schemes that PyWavelets uses.
 
 .. figure:: dwt.png
    :align: center
@@ -45,19 +38,22 @@ and has the following known issues:
 
 Installation
 ````````````
-The easiest way to install ``pytorch_wavelets`` is to clone the repo and pip install
-it. Later versions will be released on PyPi but the docs need to updated first::
+The recommended way is to use the provided ``Makefile``, which builds a
+self-contained conda/mamba environment::
 
     $ git clone https://github.com/fbcotter/pytorch_wavelets
     $ cd pytorch_wavelets
-    $ pip install .
+    $ make dev
 
-(Although the `develop` command may be more useful if you intend to perform any
-significant modification to the library.) A test suite is provided so that you
-may verify the code works on your system::
+A test suite is provided so that you may verify the code works on your system::
 
-    $ pip install -r tests/requirements.txt
-    $ pytest tests/
+    $ make test
+
+If you would rather manage the environment yourself, the dependencies are
+declared in ``pyproject.toml``::
+
+    $ pip install ".[test]"
+    $ pytest
 
 Notes
 `````
@@ -82,7 +78,7 @@ cuda calling:
     xfm = DTCWTForward(J=3, biort='near_sym_b', qshift='qshift_b').cuda()
     X = torch.randn(10,5,64,64).cuda()
     Yl, Yh = xfm(X) 
-    ifm = DTCWTInverse(J=3, biort='near_sym_b', qshift='qshift_b').cuda()
+    ifm = DTCWTInverse(biort='near_sym_b', qshift='qshift_b').cuda()
     Y = ifm((Yl, Yh))
 
 The automated tests cannot test the gpu functionality, but do check cpu running.
@@ -90,10 +86,9 @@ To test whether the repo is working on your gpu, you can download the repo,
 ensure you have pytorch with cuda enabled (the tests will check to see if
 :code:`torch.cuda.is_available()` returns true), and run:
 
-.. code:: 
+.. code::
 
-    pip install -r tests/requirements.txt
-    pytest tests/
+    make test
 
 From the base of the repo.
 
@@ -125,9 +120,8 @@ for a 3 scale transform. The resulting speeds were:
 Provenance
 ``````````
 Based on the Dual-Tree Complex Wavelet Transform Pack for MATLAB by Nick
-Kingsbury, Cambridge University. The original README can be found in
-ORIGINAL_README.txt.  This file outlines the conditions of use of the original
-MATLAB toolbox.
+Kingsbury, Cambridge University. The conditions of use of the original MATLAB
+toolbox are summarised in the ``LICENSE`` file at the root of this repo.
 
 .. bibliography:: references.bib
 

@@ -7,9 +7,49 @@ PyWavelets, allowing the calculation of the 2D-DWT in pytorch on a GPU on
 a batch of images. 
 
 Older versions did the DWT non separably. As of v1.0.0 we now
-have code to do it separably. The old non-separable code is still there and is
-surprisingly sometimes faster. You can test the two out to see which is better
-for you by changing the `separable` flag in the DWT/IDWT constructor.
+have code to do it separably, and this is the default. The non-separable code
+is still there, reachable with the ``separable`` flag in the DWT/IDWT
+constructor::
+
+    xfm = DWTForward(J=2, wave='db2', separable=False)
+    ifm = DWTInverse(wave='db2', separable=False)
+
+Both backends return identical coefficients; they differ only in how the 2d
+filter is applied. The separable one does two 1d convolutions (:math:`2L`
+multiply-accumulates per output sample), the non-separable one a single
+convolution with the outer-product kernel (:math:`L^2` per sample). So the
+non-separable backend wins for short filters and loses for long ones, with the
+crossover around ``db3``/``db4``. Measured on a 2-level transform, with the
+non-separable time as a multiple of the separable one (below 1.0 means the
+non-separable backend is faster):
+
++----------+---------------------+----------------------+
+| Wavelet  | 16x3x128x128        | 4x16x512x512         |
++==========+==========+==========+===========+==========+
+|          | CPU      | GPU      | CPU       | GPU      |
++----------+----------+----------+-----------+----------+
+| ``db1``  | 0.57x    | 0.74x    | 0.60x     | 0.59x    |
++----------+----------+----------+-----------+----------+
+| ``db2``  | 0.99x    | 0.85x    | 0.71x     | 0.75x    |
++----------+----------+----------+-----------+----------+
+| ``db4``  | 1.35x    | 1.61x    | 1.02x     | 1.27x    |
++----------+----------+----------+-----------+----------+
+| ``db8``  | 3.63x    | 3.19x    | 2.20x     | 2.80x    |
++----------+----------+----------+-----------+----------+
+
+(14 Intel Xeon cores and an RTX A2000; treat the numbers as indicative and
+measure on your own hardware and input sizes.)
+
+.. warning::
+
+    On Ampere and newer GPUs, the non-separable backend's square
+    :math:`L \times L` kernel is eligible for TF32 tensor cores, which
+    PyTorch enables by default for convolutions. In the ``symmetric`` and
+    ``reflect`` padding modes this costs it roughly three decimal digits of
+    float32 accuracy. The separable backend's :math:`1 \times L` kernels are
+    not affected. If you need full float32 accuracy there, either keep
+    ``separable=True`` or set
+    :code:`torch.backends.cudnn.allow_tf32 = False`.
 
 The DWT/IDWT now supports most of the padding schemes that PyWavelets uses. In
 particular:
@@ -24,9 +64,10 @@ It is pretty minimal and should be clear what is going on.
 
 In particular, the DWT and IWT classes initialize the filter banks as pytorch
 tensors (taking care to flip them as pytorch uses cross-correlation not
-convolution). It then performs non-separable 2D convolution on the input, using
-strided convolution to calculate the LL, LH, HL, and HH subbands. It also takes
-care of padding to match the PyWavelets implementation.
+convolution). It then uses strided convolution to calculate the LL, LH, HL and
+HH subbands - by default as two 1d convolutions, or as a single 2d convolution
+when ``separable=False``. It also takes care of padding to match the
+PyWavelets implementation.
 
 Differences to PyWavelets
 -------------------------
@@ -76,6 +117,51 @@ Example
     Y = ifm((Yl, Yh))
     import numpy as np
     np.testing.assert_array_almost_equal(Y.cpu().numpy(), X.cpu().numpy())
+
+Stationary (undecimated) WT
+---------------------------
+
+:class:`pytorch_wavelets.SWTForward` and :class:`pytorch_wavelets.SWTInverse`
+compute the 2d stationary wavelet transform, also called the undecimated or a
+trous wavelet transform. Nothing is downsampled, so every scale keeps the input
+resolution and the filters are dilated by :math:`2^j` instead. That costs
+:math:`4^J` redundancy but makes the transform shift invariant, which the
+decimated DWT is not.
+
+.. code:: python
+
+    import torch
+    from pytorch_wavelets import SWTForward, SWTInverse
+    sfm = SWTForward(J=3, wave='db3')
+    ifm = SWTInverse(wave='db3')
+    X = torch.randn(10, 5, 64, 64)
+    coeffs = sfm(X)
+    print(len(coeffs))
+    >>> 3
+    print(coeffs[0].shape)
+    >>> torch.Size([10, 5, 4, 64, 64])
+    Y = ifm(coeffs)
+
+Unlike the DWT, which returns ``(yl, yh)``, the SWT returns a plain list with
+one entry per scale, finest first. Each entry stacks all **four** subbands
+along a new third dimension, in the order (ll, lh, hl, hh) - the lowpass is
+included at every scale because it is what feeds the next one. This matches
+the layout of ``pywt.swt2``, other than pywt returning the coarsest scale
+first.
+
+The inverse only needs the coarsest lowpass; the finer ones are redundant and
+are recomputed as it goes.
+
+.. warning::
+
+    Perfect reconstruction only holds for periodic extension
+    (``mode='periodization'``, the default), because the undecimated
+    reconstruction identity
+    :math:`\tfrac{1}{2}\left[G_0(z)H_0(z) + G_1(z)H_1(z)\right] = 1`
+    assumes circular convolution. With the other padding schemes the interior
+    is recovered exactly but samples within roughly a filter length of the
+    border are not. PyWavelets has the same restriction: its ``swt2`` is
+    periodic only.
 
 Other Notes
 -----------
