@@ -30,7 +30,7 @@ ENV_STAMP      = $(CACHE_DIR)/env.$(ENV_NAME).stamp
 INSTALL_STAMP  = $(CACHE_DIR)/install.$(ENV_NAME).stamp
 
 .DEFAULT_GOAL := help
-.PHONY: help env env-update install dev test test-cov test-slow test-all lint notebooks check-notebooks docs build clean clean-build clean-env
+.PHONY: help env env-update install dev test test-cov test-slow test-all lint hooks kernel notebooks check-notebooks docs build clean clean-build clean-env
 
 help: ## Show this help
 	@echo "pytorch_wavelets - available targets:"
@@ -97,6 +97,23 @@ test-all: install ## Run every test, slow ones included
 
 lint: env ## Run flake8 over the package
 	$(RUN) python -m flake8 pytorch_wavelets tests examples
+
+hooks: env ## Install the git hooks (normalises notebooks/ before each commit)
+	git config core.hooksPath tools/hooks
+	# Record the environment's interpreter: the shell git runs a hook in is not
+	# the activated environment, so plain python3 would not find sphinx-gallery.
+	git config pytorchwavelets.python "$$($(RUN) python -c 'import sys; print(sys.executable)' | tr -d '\r')"
+	@echo "core.hooksPath -> tools/hooks"
+	@echo "interpreter    -> $$(git config --get pytorchwavelets.python)"
+	@echo "Undo with: git config --unset core.hooksPath"
+
+kernel: install ## Register a Jupyter kernel for this environment
+	# Without this the notebooks open against whatever kernel Jupyter happens to
+	# offer, which will not have pytorch_wavelets or matplotlib in it.
+	$(RUN) python -m ipykernel install --user \
+	  --name $(ENV_NAME) --display-name "Python ($(ENV_NAME))"
+	@echo "Select 'Python ($(ENV_NAME))' as the kernel when you open a notebook."
+	@echo "Undo with: jupyter kernelspec remove $(ENV_NAME)"
 
 notebooks: install ## Regenerate notebooks/ from the examples/ scripts
 	$(RUN) python tools/make_notebooks.py

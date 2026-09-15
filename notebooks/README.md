@@ -15,6 +15,22 @@ figures - run the notebook and they appear.
 
 ## Running them
 
+From a clone of the repository, using the conda environment the Makefile
+builds:
+
+```bash
+make dev        # create the environment and install the package into it
+make kernel     # register it with Jupyter
+jupyter notebook notebooks/
+```
+
+Then pick **Python (pytorch_wavelets)** as the kernel. That second step is easy
+to skip and is the usual cause of `ModuleNotFoundError: No module named
+'matplotlib'` here: the notebook opens against whatever kernel Jupyter offers
+by default, which knows nothing about this project.
+
+Or with pip, into an environment of your own:
+
 ```bash
 pip install "pytorch_wavelets[examples]" notebook
 jupyter notebook notebooks/
@@ -35,3 +51,16 @@ make notebooks
 
 CI runs `make check-notebooks` and fails if the two have drifted apart, so the
 notebooks cannot quietly fall behind the scripts the documentation executes.
+
+Opening a notebook in Jupyter is enough to make it drift: saving writes a
+trailing empty cell, execution counts and timing metadata back into the file.
+Rather than leave that to be tidied up by hand, install the git hook once:
+
+```bash
+make hooks
+```
+
+It regenerates the notebooks and restages them before each commit that touches
+`examples/` or `notebooks/`, and stays out of the way otherwise. Skip it for a
+single commit with `git commit --no-verify`, and undo it with
+`git config --unset core.hooksPath`.

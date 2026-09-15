@@ -85,6 +85,28 @@ def check_first_cell_is_self_contained():
         sys.exit('first code cell does not import what it uses: %s\n'
                  'keep the imports in the same cell as the seed'
                  % ', '.join(bad))
+    check_no_execution_residue()
+
+
+def check_no_execution_residue():
+    """Committed notebooks must carry no trace of having been run.
+
+    Running one in place - to check that it still works, say - writes
+    ExecuteTime metadata, execution counts and outputs back into the file.
+    That is machine-specific noise, it makes the diffs unreadable, and it is
+    easy to commit without noticing.
+    """
+    dirty = []
+    for path in sorted(NOTEBOOKS.glob('plot_*.ipynb')):
+        for cell in json.loads(path.read_text())['cells']:
+            if (cell.get('outputs') or cell.get('execution_count')
+                    or 'ExecuteTime' in cell.get('metadata', {})):
+                dirty.append(path.name)
+                break
+    if dirty:
+        sys.exit('carries execution output or timings: %s\n'
+                 'run `make notebooks` to regenerate them clean'
+                 % ', '.join(dirty))
 
 
 if __name__ == '__main__':

@@ -11,3 +11,4 @@ include examples/README.txt
 recursive-include notebooks *.ipynb
 include notebooks/README.md
 include tools/make_notebooks.py
+include tools/hooks/pre-commit
