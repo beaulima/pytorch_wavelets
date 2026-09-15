@@ -1,7 +1,0 @@
-# Dependencies for building the documentation.
-# torch, numpy and PyWavelets come from the package itself (autodoc imports
-# pytorch_wavelets), so install the project alongside these, e.g.
-#     pip install . -r docs/requirements.txt
-sphinx>=4
-sphinx_rtd_theme
-sphinxcontrib-bibtex>=2.0

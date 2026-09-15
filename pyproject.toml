@@ -48,12 +48,14 @@ test = [
     "py3nvml",
 ]
 docs = [
-    "sphinx",
+    # sphinx>=4 for the modern config, and bibtex>=2 is the version that
+    # requires the bibtex_bibfiles setting docs/conf.py now provides.
+    # matplotlib and ipython were declared but nothing uses them: the docs
+    # enable only autodoc, mathjax, viewcode, napoleon and bibtex, and no .rst
+    # carries a plot:: or ipython:: directive.
+    "sphinx>=4",
     "sphinx_rtd_theme",
-    "sphinxcontrib-bibtex",
-    "docutils",
-    "matplotlib",
-    "ipython",
+    "sphinxcontrib-bibtex>=2.0",
 ]
 dev = [
     "pytorch_wavelets[test,docs]",
