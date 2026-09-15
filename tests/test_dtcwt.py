@@ -28,7 +28,7 @@ def set_double_precision():
         torch.set_default_dtype(old_prec)
 
 
-def setup():
+def setup_module():
     global barbara, barbara_t
     global bshape, bshape_half
     global ch

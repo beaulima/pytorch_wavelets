@@ -15,7 +15,7 @@ else:
     dev = torch.device('cpu')
 
 
-def setup():
+def setup_module():
     global barbara, barbara_t
     global bshape, bshape_extrarow
     global ref_colfilter, ch

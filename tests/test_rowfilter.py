@@ -14,8 +14,8 @@ else:
     dev = torch.device('cpu')
 
 
-def setup():
-    global barbara, barbara_t, tf
+def setup_module():
+    global barbara, barbara_t
     global bshape, bshape_extracol
     global ref_rowfilter, ch
     py3nvml.grab_gpus(1, gpu_fraction=0.5, env_set_ok=True)
