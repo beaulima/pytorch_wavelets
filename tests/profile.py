@@ -20,8 +20,6 @@ parser.add_argument('-c', '--convolution', action='store_true',
                     help='Profile an 11x11 convolution')
 parser.add_argument('--dwt', action='store_true',
                     help='Profile dwt instead of dtcwt')
-parser.add_argument('--fb', action='store_true',
-                    help='Do the 4 fb implementation of the dtcwt')
 parser.add_argument('-f', '--forward', action='store_true',
                     help='Only do forward transform (default is fwd and inv)')
 parser.add_argument('-i', '--inverse', action='store_true',
@@ -111,16 +109,6 @@ def separable_dwt(size, J, no_grad=False, dev='cuda'):
     return yl.mean(), [y.mean() for y in yh]
 
 
-def selesnick_dtcwt(size, J, no_grad=False, dev='cuda'):
-    x = torch.randn(*size, requires_grad=(not no_grad)).to(dev)
-    xfm = DTCWTForward2(J=J, mode='symmetric').to(dev)
-    for _ in range(5):
-        Yl, Yh = xfm(x)
-        if not no_grad:
-            Yl.backward(torch.ones_like(Yl))
-    return Yl, Yh
-
-
 def test_dtcwt(size, J, no_grad=False, dev='cuda'):
     x = torch.randn(*size, requires_grad=(not no_grad)).to(dev)
     h0a, h0b, _, _, h1a, h1b, _, _ = level1('farras')
@@ -162,10 +150,6 @@ if __name__ == "__main__":
     elif args.dwt:
         print('Running separable dwt')
         separable_dwt(size, args.j, args.no_grad, args.device)
-    elif args.fb:
-        print('Running 4 dwts')
-        yl, yh = selesnick_dtcwt(size, args.j, args.no_grad, args.device)
-        #  yl, yh = test_dtcwt2(size, args.j, no_grad=args.no_grad, dev=args.device)
     else:
         if args.forward:
             print('Running forward transform')

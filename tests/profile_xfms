@@ -1,5 +1,8 @@
 #! /bin/bash
 
+# The .prof outputs are not versioned, so make sure the directory exists.
+mkdir -p profiles
+
 # Profile 5 scales 
 for J in {1..2}; do
     nvprof python profile.py -j $J 2> profiles/end_to_end_j${J}.prof
