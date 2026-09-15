@@ -42,7 +42,10 @@ dependencies:
   - sphinx_rtd_theme
   - sphinxcontrib-bibtex
   - matplotlib
+  # For opening the committed notebooks from a dev environment. Deliberately
+  # absent from the `examples` extra, which the docs build also installs.
   - ipython
+  - notebook
   # Not packaged on conda-forge - these are the numpy reference implementation
   # the tests compare against, and the GPU memory helper used by the profiling
   # scripts.

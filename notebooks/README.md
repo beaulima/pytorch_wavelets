@@ -16,9 +16,14 @@ figures - run the notebook and they appear.
 ## Running them
 
 ```bash
-pip install "pytorch_wavelets[examples]"
+pip install "pytorch_wavelets[examples]" notebook
 jupyter notebook notebooks/
 ```
+
+The `examples` extra brings what the demos import - matplotlib and
+scikit-image for the test images. Jupyter itself is listed separately on
+purpose: the same extra is pulled in when the documentation is built, and a
+docs builder has no use for a notebook server.
 
 ## Regenerating
 
