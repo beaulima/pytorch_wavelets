@@ -16,7 +16,7 @@ else:
     dev = torch.device('cpu')
 
 
-def setup():
+def setup_module():
     global barbara, barbara_t
     global bshape, bshape_half
     global ref_coldfilt, ch
@@ -32,8 +32,8 @@ def setup():
     ch = barbara_t.shape[1]
 
     # Some useful functions
-    ref_coldfilt = lambda x, ha, hb: np.stack(
-        [np_coldfilt(s, ha, hb) for s in x], axis=0)
+    def ref_coldfilt(x, ha, hb):
+        return np.stack([np_coldfilt(s, ha, hb) for s in x], axis=0)
 
 
 def test_barbara_loaded():

@@ -1,0 +1,55 @@
+#!/bin/sh
+# Keep notebooks/ normalised.
+#
+# Jupyter writes to a notebook whenever it is opened and saved: a trailing
+# empty cell, execution counts, output, timing metadata. Since notebooks/ is
+# generated from examples/, that shows up as drift and fails the CI check for
+# reasons that have nothing to do with the code. This hook regenerates them and
+# restages the result, so the committed notebooks are always the canonical
+# output of the scripts.
+#
+# Install with `make hooks`, which points core.hooksPath here. Skip once with
+# `git commit --no-verify`.
+
+# Only do the work when the commit could actually affect the notebooks.
+if ! git diff --cached --name-only | grep -qE '^(examples|notebooks)/'; then
+    exit 0
+fi
+
+# `make hooks` records the project interpreter, because the shell git runs a
+# hook in is not the activated environment - plain python3 will not have
+# sphinx-gallery.
+recorded=$(git config --get pytorchwavelets.python 2>/dev/null)
+
+for py in "$recorded" python3 python; do
+    [ -n "$py" ] || continue
+    if command -v "$py" >/dev/null 2>&1 &&
+       "$py" -c 'import sphinx_gallery' >/dev/null 2>&1; then
+        PYTHON="$py"
+        break
+    fi
+done
+
+if [ -z "$PYTHON" ]; then
+    echo "pre-commit: sphinx-gallery not importable, leaving notebooks/ alone."
+    echo "            run 'make hooks' to record the project interpreter, or"
+    echo "            'make notebooks' by hand before committing."
+    exit 0
+fi
+
+if ! "$PYTHON" tools/make_notebooks.py >/dev/null 2>&1; then
+    echo "pre-commit: regenerating notebooks/ failed; commit left as it was."
+    exit 0
+fi
+
+# Restage only the generated notebooks the regeneration actually touched -
+# anything else under notebooks/, the README for one, is hand written and none
+# of this hook's business.
+changed=$(git diff --name-only -- 'notebooks/*.ipynb')
+if [ -n "$changed" ]; then
+    echo "$changed" | tr '\n' '\0' | xargs -0 git add --
+    echo "pre-commit: normalised and restaged:"
+    echo "$changed" | sed 's/^/            /'
+fi
+
+exit 0

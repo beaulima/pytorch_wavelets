@@ -7,11 +7,14 @@ parser = argparse.ArgumentParser(description='Prof parser')
 parser.add_argument('file', type=str)
 
 # Strip the whitespace on reading
+
+
 def strip(text):
     try:
         return text.strip()
     except AttributeError:
         return text
+
 
 def convert(x):
     if x[-2:] == 'ms':
@@ -23,6 +26,7 @@ def convert(x):
     elif x[-1] == 's':
         x = 1000 * float(x[:-1])
     return x
+
 
 def convert_timep(x):
     return float(x[:-1])
@@ -69,12 +73,14 @@ def prep_file(file):
         data = f.readlines()
 
     header = data[0].split('command: ')[1]
-    for i, l in enumerate(data):
+    for i, line in enumerate(data):
         if i >= 3:
-            data[i] = ';'.join([l[:16], l[17:25], l[26:35], l[36:45],
-                              l[46:55], l[56:65], l[66:75], l[76:]])
+            data[i] = ';'.join(
+                [line[:16], line[17:25], line[26:35], line[36:45],
+                 line[46:55], line[56:65], line[66:75], line[76:]])
     data = ''.join(data[4:])
     return data, header
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -83,4 +89,3 @@ if __name__ == '__main__':
     with open(args.file, 'w') as f:
         f.write(header)
         f.write(df.to_string(index=False))
-

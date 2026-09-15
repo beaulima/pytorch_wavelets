@@ -1,0 +1,97 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytorch_wavelets"
+description = "A port of the DTCWT toolbox to run on pytorch"
+readme = { file = "README.rst", content-type = "text/x-rst" }
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [
+    { name = "Fergal Cotter", email = "fbc23@cam.ac.uk" },
+]
+keywords = ["pytorch", "DWT", "DTCWT", "wavelet", "complex wavelet"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: Free To Use But Restricted",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+# PyWavelets is imported at module scope by pytorch_wavelets.dwt, which the
+# top level __init__ pulls in - it is a hard runtime dependency, not just a
+# test one.
+dependencies = [
+    "numpy",
+    "torch>=2.6",
+    "PyWavelets>=1.0.0",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/fbcotter/pytorch_wavelets"
+Documentation = "https://pytorch-wavelets.readthedocs.io/"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=4.6",
+    "pytest-cov",
+    "coverage",
+    # The numpy reference implementation the DTCWT tests compare against. It
+    # declares numpy<2.0.0, which constrains the whole test environment - the
+    # library itself has no such limit.
+    "dtcwt",
+    "py3nvml",
+]
+docs = [
+    # sphinx>=4 for the modern config, and bibtex>=2 is the version that
+    # requires the bibtex_bibfiles setting docs/conf.py now provides.
+    "sphinx>=4",
+    "sphinx_rtd_theme",
+    "sphinxcontrib-bibtex>=2.0",
+    # The gallery under examples/ is built as part of the docs.
+    "pytorch_wavelets[examples]",
+]
+examples = [
+    # sphinx-gallery runs every examples/plot_*.py at docs build time and
+    # renders its figures, so a stale example breaks the build rather than
+    # sitting there quietly. It needs python>=3.10; the docs are built on 3.11.
+    "sphinx-gallery>=0.19",
+    "matplotlib",
+    # skimage.data carries the classic test images the repo does not ship
+    # (cameraman, coins, checkerboard...) with documented provenance, which
+    # beats committing more image files.
+    "scikit-image",
+]
+dev = [
+    "pytorch_wavelets[test,docs]",
+    "pandas",
+    "flake8",
+    "build",
+    "twine",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "pytorch_wavelets._version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["pytorch_wavelets*"]
+
+[tool.setuptools.package-data]
+"pytorch_wavelets.dtcwt.data" = ["*.npz"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The slow marker covers the gradchecks over full-size inputs. They are real
+# tests, not dead ones - CI runs them in their own job (make test-slow).
+addopts = "-ra -m 'not slow'"
+markers = [
+    "slow: gradchecks that take minutes; excluded from the default run",
+]
+
+[tool.coverage.run]
+source = ["pytorch_wavelets"]

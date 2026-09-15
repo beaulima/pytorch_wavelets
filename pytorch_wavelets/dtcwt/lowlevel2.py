@@ -11,7 +11,7 @@ import pywt
 from pytorch_wavelets.dwt.transform2d import DWTForward, DWTInverse
 from pytorch_wavelets.dwt.lowlevel import afb2d, sfb2d_nonsep as sfb2d
 from pytorch_wavelets.dwt.lowlevel import prep_filt_afb2d, prep_filt_sfb2d_nonsep as prep_filt_sfb2d
-from pytorch_wavelets.dtcwt.coeffs import level1 as _level1, qshift as _qshift, biort as _biort
+from pytorch_wavelets.dtcwt.coeffs import level1 as _level1, qshift as _qshift
 
 
 class DTCWTForward2(nn.Module):
@@ -113,8 +113,6 @@ class DTCWTInverse2(nn.Module):
         # Convert the highs back to subbands
         yl, yh = x
         J = len(yh)
-        #  w = [[[[None for i in range(3)] for j in range(2)]
-              #  for k in range(2)] for l in range(J)]
         w = [[[[None for band in range(3)] for j in range(J)]
               for m in range(2)] for n in range(2)]
         for j in range(J):
@@ -537,7 +535,7 @@ def icplxdual2D(yl, yh, level1='farras', qshift='qshift_a', mode='periodization'
 
     # Convert the highs back to subbands
     J = len(yh)
-    w = [[[[None for i in range(3)] for j in range(2)] for k in range(2)] for l in range(J)]
+    w = [[[[None for i in range(3)] for j in range(2)] for k in range(2)] for _ in range(J)]
     for j in range(J):
         w[j][0][0][0], w[j][1][1][0] = pm(yh[j][:,2,:,:,:,0],
                                           yh[j][:,3,:,:,:,1])

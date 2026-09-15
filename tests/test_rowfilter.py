@@ -14,8 +14,8 @@ else:
     dev = torch.device('cpu')
 
 
-def setup():
-    global barbara, barbara_t, tf
+def setup_module():
+    global barbara, barbara_t
     global bshape, bshape_extracol
     global ref_rowfilter, ch
     py3nvml.grab_gpus(1, gpu_fraction=0.5, env_set_ok=True)
@@ -30,8 +30,8 @@ def setup():
     ch = barbara_t.shape[1]
 
     # Some useful functions
-    ref_rowfilter = lambda x, h: np.stack(
-        [np_colfilter(s.T, h).T for s in x], axis=0)
+    def ref_rowfilter(x, h):
+        return np.stack([np_colfilter(s.T, h).T for s in x], axis=0)
 
 
 def test_barbara_loaded():

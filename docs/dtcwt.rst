@@ -140,7 +140,7 @@ E.g.:
   xfm = DTCWTForward(J=3, skip_hps=[True, False, False])
   yl, yh = xfm(torch.randn(1, 1, 64, 64))
   print(yh[0].shape)
-  >>> torch.Size([0])
+  >>> torch.Size([])
   print(yh[1].shape)
   >>> torch.Size([1, 1, 6, 16, 16, 2])
 
@@ -191,7 +191,7 @@ E.g.
   yl, yh = xfm3(x)
   for l in yl:
     print(yl.shape)
-  >>> torch.Size([0]) 
+  >>> torch.Size([]) 
   >>> torch.Size([1, 1, 32, 32]) 
   >>> torch.Size([1, 1, 16, 16]) 
 

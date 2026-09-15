@@ -1,4 +1,3 @@
-import torch
 import argparse
 import py3nvml
 import timeit
@@ -33,7 +32,6 @@ if __name__ == "__main__":
         if args.xfm == 'dwt':
             t = timeit.Timer('ifm(xfm(x))',
                              setup="""
-import torch
 from pytorch_wavelets import DWT, IDWT
 x = torch.randn(*{sz}).to('{dev}')
 xfm = DWT(J={J}, wave='{wave}').to('{dev}')
@@ -43,7 +41,6 @@ ifm = IDWT(wave='{wave}').to('{dev}')""".format(sz=size, dev=args.device, J=args
         else:
             t = timeit.Timer('ifm(xfm(x))',
                              setup="""
-import torch
 from pytorch_wavelets import DTCWTForward, DTCWTInverse
 x = torch.randn(*{sz}).to('{dev}')
 xfm = DTCWTForward(J={J}).to('{dev}')
