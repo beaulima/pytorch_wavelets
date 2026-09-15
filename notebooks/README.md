@@ -24,15 +24,22 @@ make kernel     # register it with Jupyter
 jupyter notebook notebooks/
 ```
 
-Then pick **Python (pytorch_wavelets)** as the kernel. That second step is easy
-to skip and is the usual cause of `ModuleNotFoundError: No module named
-'matplotlib'` here: the notebook opens against whatever kernel Jupyter offers
-by default, which knows nothing about this project.
+These notebooks ask for a kernel named `pytorch_wavelets`, which `make kernel`
+registers - so once that has been run, opening one selects the right
+interpreter no matter where Jupyter itself was started from. Skip that step and
+Jupyter will offer to pick a kernel instead; choosing an unrelated one is the
+usual cause of `ModuleNotFoundError: No module named 'matplotlib'` here.
+
+They deliberately do not ask for the generic `python3` kernel, which resolves
+to whichever python3 the running Jupyter finds first - often another project's
+environment, and then the first cell fails on the imports.
 
 Or with pip, into an environment of your own:
 
 ```bash
-pip install "pytorch_wavelets[examples]" notebook
+pip install "pytorch_wavelets[examples]" notebook ipykernel
+python -m ipykernel install --user --name pytorch_wavelets \
+    --display-name "Python (pytorch_wavelets)"
 jupyter notebook notebooks/
 ```
 

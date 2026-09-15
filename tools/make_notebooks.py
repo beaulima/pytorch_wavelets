@@ -21,6 +21,17 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 EXAMPLES = ROOT / 'examples'
 NOTEBOOKS = ROOT / 'notebooks'
 
+# sphinx-gallery writes a kernelspec named 'python3', which resolves to
+# whichever python3 kernel the running Jupyter happens to find first - often
+# an unrelated environment, and then the first cell fails on the imports.
+# Naming the kernel explicitly makes opening a notebook select the right one.
+# `make kernel` registers exactly this name.
+KERNELSPEC = {
+    'display_name': 'Python (pytorch_wavelets)',
+    'language': 'python',
+    'name': 'pytorch_wavelets',
+}
+
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
@@ -42,10 +53,11 @@ def main(argv=None):
         python_to_jupyter_cli([str(script)])
         produced = script.with_suffix('.ipynb')
         target = NOTEBOOKS / produced.name
+        nb = json.loads(produced.read_text())
+        nb['metadata']['kernelspec'] = KERNELSPEC
         # Canonicalise: the converter does not guarantee a stable key order
         # between runs, and comparing raw bytes would report that as drift.
-        new = json.dumps(json.loads(produced.read_text()),
-                         indent=1, sort_keys=True) + '\n'
+        new = json.dumps(nb, indent=1, sort_keys=True) + '\n'
         produced.unlink()
 
         if args.check:
