@@ -1,0 +1,48 @@
+# Conda/mamba environment for pytorch_wavelets.
+#
+# Do not create this by hand - use the Makefile, which keeps the environment
+# name and python version configurable:
+#
+#     make env            # create or update the environment
+#     make dev            # env + editable install + import smoke check
+#
+# This pins the CPU build of pytorch from conda-forge. For a CUDA build,
+# replace `pytorch` below with `pytorch-gpu` (conda-forge) or follow the
+# instructions at https://pytorch.org/get-started/locally/ and install torch
+# into the environment yourself.
+name: pytorch_wavelets
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - setuptools>=64
+  - wheel
+  # Runtime
+  # Pinned below 2 only because the `dtcwt` reference package the tests compare
+  # against declares numpy<2.0.0. Without the pin conda installs numpy 2.x and
+  # the pip section below silently downgrades it on every `make env`.
+  # pytorch_wavelets itself works fine with numpy 2.
+  - numpy<2
+  - scipy
+  - pytorch>=1.0.0
+  - pywavelets>=1.0.0
+  # Tooling used by the Makefile targets
+  - pytest>=4.6
+  - pytest-cov
+  - coverage
+  - flake8
+  - python-build
+  - pandas
+  # Docs
+  - sphinx
+  - sphinx_rtd_theme
+  - sphinxcontrib-bibtex
+  - matplotlib
+  - ipython
+  # Not packaged on conda-forge - these are the numpy reference implementation
+  # the tests compare against, and the GPU memory helper used by the profiling
+  # scripts.
+  - pip:
+      - dtcwt
+      - py3nvml

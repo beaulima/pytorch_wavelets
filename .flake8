@@ -1,0 +1,8 @@
+[flake8]
+max-line-length = 88
+exclude = .git,__pycache__,build,dist,docs,.make
+
+# E226: missing whitespace around arithmetic operator - the wavelet maths reads
+#       better tightly spaced (e.g. x[:,:,:L2]).
+# W503/W504: line break before/after binary operator - mutually exclusive.
+extend-ignore = E226,W503,W504

@@ -1,6 +1,8 @@
-include tests/*.py
 include README.rst
-include pytorch_wavelets/dtcwt/filters.cu
-include pytorch_wavelets/dtcwt/data/*.npz
-include tests/*.npz
-
+include LICENSE
+include pyproject.toml
+include environment.yml
+include Makefile
+recursive-include pytorch_wavelets/dtcwt/data *.npz
+recursive-include tests *.py
+recursive-include tests *.npz
