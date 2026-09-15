@@ -11,6 +11,27 @@ and keeps them apart.
 This example measures that rather than asserting it.
 """
 
+# %%
+# Objective
+# ---------
+#
+# Quantify a claim usually made in words: that the DTCWT resolves orientation
+# where the separable DWT cannot. The measurement is the share of finest-scale
+# bandpass energy falling in each subband, for three images whose dominant
+# structure runs in known directions. If the claim holds, images with different
+# orientation content should produce different, interpretable signatures under
+# the DTCWT and near-indistinguishable ones under the DWT.
+
+# %%
+# Environment
+# -----------
+#
+# Imports, versions and the random seed in one cell, so that running it is
+# enough to set the notebook up. Every number below can be checked
+# against a rerun. Following the reproducibility conventions in Rule et al.
+# (2019), every figure and every quantity in this notebook is produced by the
+# code above it - nothing is quoted from a previous run.
+
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,26 +60,6 @@ def band_energy(coeffs):
     e = (coeffs ** 2).sum(dim=tuple(range(1, coeffs.ndim))).numpy()
     return e / e.sum()
 
-
-# %%
-# Objective
-# ---------
-#
-# Quantify a claim usually made in words: that the DTCWT resolves orientation
-# where the separable DWT cannot. The measurement is the share of finest-scale
-# bandpass energy falling in each subband, for three images whose dominant
-# structure runs in known directions. If the claim holds, images with different
-# orientation content should produce different, interpretable signatures under
-# the DTCWT and near-indistinguishable ones under the DWT.
-
-# %%
-# Reproducibility
-# ---------------
-#
-# Versions and the random seed, printed so that any number below can be checked
-# against a rerun. Following the reproducibility conventions in Rule et al.
-# (2019), every figure and every quantity in this notebook is produced by the
-# code above it - nothing is quoted from a previous run.
 
 SEED = 0
 torch.manual_seed(SEED)

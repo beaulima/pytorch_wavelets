@@ -7,6 +7,25 @@ wavelet coefficients can be differentiated back to the pixels. That is what
 this package is for: the numpy implementations cannot do it.
 """
 
+# %%
+# Objective
+# ---------
+#
+# Demonstrate that a loss computed on wavelet coefficients can be optimised
+# back to the pixels, by solving a small variational denoising problem, and
+# then verify the gradients themselves against finite differences rather than
+# assuming they are right.
+
+# %%
+# Environment
+# -----------
+#
+# Imports, versions and the random seed in one cell, so that running it is
+# enough to set the notebook up. Every number below can be checked
+# against a rerun. Following the reproducibility conventions in Rule et al.
+# (2019), every figure and every quantity here is produced by the code above
+# it - nothing is quoted from a previous run.
+
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,24 +37,6 @@ from torch.autograd import gradcheck
 import pytorch_wavelets
 from pytorch_wavelets import DWTForward
 from pytorch_wavelets.dwt.lowlevel import AFB2D, mode_to_int
-
-# %%
-# Objective
-# ---------
-#
-# Demonstrate that a loss computed on wavelet coefficients can be optimised
-# back to the pixels, by solving a small variational denoising problem, and
-# then verify the gradients themselves against finite differences rather than
-# assuming they are right.
-
-# %%
-# Reproducibility
-# ---------------
-#
-# Versions and the random seed, printed so that any number below can be checked
-# against a rerun. Following the reproducibility conventions in Rule et al.
-# (2019), every figure and every quantity here is produced by the code above
-# it - nothing is quoted from a previous run.
 
 SEED = 0
 torch.manual_seed(SEED)

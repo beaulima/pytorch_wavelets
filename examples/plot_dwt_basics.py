@@ -8,6 +8,25 @@ gradients flow through it - which is the reason for doing wavelets in pytorch
 rather than in numpy.
 """
 
+# %%
+# Objective
+# ---------
+#
+# Establish what this package's DWT returns and how to read it: the shape and
+# ordering of the coefficients, which padding schemes reconstruct exactly, and
+# that the transform is an ordinary batched, differentiable pytorch module.
+# Later examples build on these conventions.
+
+# %%
+# Environment
+# -----------
+#
+# Imports, versions and the random seed in one cell, so that running it is
+# enough to set the notebook up. Every number below can be checked
+# against a rerun. Following the reproducibility conventions in Rule et al.
+# (2019), every figure and every quantity in this notebook is produced by the
+# code above it - nothing is quoted from a previous run.
+
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,24 +46,6 @@ def to_tensor(im):
     im = (im - im.min()) / (np.ptp(im) + 1e-9)
     return torch.tensor(im)[None, None]
 
-
-# %%
-# Objective
-# ---------
-#
-# Establish what this package's DWT returns and how to read it: the shape and
-# ordering of the coefficients, which padding schemes reconstruct exactly, and
-# that the transform is an ordinary batched, differentiable pytorch module.
-# Later examples build on these conventions.
-
-# %%
-# Reproducibility
-# ---------------
-#
-# Versions and the random seed, printed so that any number below can be checked
-# against a rerun. Following the reproducibility conventions in Rule et al.
-# (2019), every figure and every quantity in this notebook is produced by the
-# code above it - nothing is quoted from a previous run.
 
 SEED = 0
 torch.manual_seed(SEED)

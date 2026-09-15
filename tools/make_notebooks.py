@@ -62,7 +62,29 @@ def main(argv=None):
         if stale:
             sys.exit('out of date with examples/: %s\nrun `make notebooks`'
                      % ', '.join(stale))
+        check_first_cell_is_self_contained()
         print('notebooks/ is in step with examples/ (%d files)' % len(scripts))
+
+
+def check_first_cell_is_self_contained():
+    """The first code cell must stand on its own.
+
+    Notebooks get run out of order - that is the whole point of them - so the
+    cell that sets up the environment has to carry its own imports. Keeping
+    them in a separate earlier cell means anyone who starts from the seeding
+    cell gets a NameError.
+    """
+    bad = []
+    for path in sorted(NOTEBOOKS.glob('plot_*.ipynb')):
+        cells = json.loads(path.read_text())['cells']
+        code = [c for c in cells if c['cell_type'] == 'code']
+        first = ''.join(code[0]['source']) if code else ''
+        if 'import torch' not in first or 'SEED' not in first:
+            bad.append(path.name)
+    if bad:
+        sys.exit('first code cell does not import what it uses: %s\n'
+                 'keep the imports in the same cell as the seed'
+                 % ', '.join(bad))
 
 
 if __name__ == '__main__':

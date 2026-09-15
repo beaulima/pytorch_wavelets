@@ -11,16 +11,6 @@ It also shows why the redundancy of the stationary transform is worth paying
 for, which is the counterpart to :doc:`plot_shift_invariance`.
 """
 
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-import skimage
-import torch
-from skimage import data
-
-import pytorch_wavelets
-from pytorch_wavelets import (DWTForward, DWTInverse, SWTForward, SWTInverse)
-
 # %%
 # Objective
 # ---------
@@ -32,13 +22,24 @@ from pytorch_wavelets import (DWTForward, DWTInverse, SWTForward, SWTInverse)
 # Donoho (1995), obtained here directly from the stationary transform.
 
 # %%
-# Reproducibility
-# ---------------
+# Environment
+# -----------
 #
-# Versions and the random seed, printed so that any number below can be checked
+# Imports, versions and the random seed in one cell, so that running it is
+# enough to set the notebook up. Every number below can be checked
 # against a rerun. Following the reproducibility conventions in Rule et al.
 # (2019), every figure and every quantity in this notebook is produced by the
 # code above it - nothing is quoted from a previous run.
+
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import skimage
+import torch
+from skimage import data
+
+import pytorch_wavelets
+from pytorch_wavelets import (DWTForward, DWTInverse, SWTForward, SWTInverse)
 
 SEED = 0
 torch.manual_seed(SEED)

@@ -11,6 +11,26 @@ sliding a window across a larger image would change the content as well as
 its position, and that change swamps the effect.
 """
 
+# %%
+# Objective
+# ---------
+#
+# Measure what a one pixel translation does to each transform in this package,
+# and at what cost in redundancy. The experiment uses circular shifts with
+# periodization padding so that the image content is identical at every offset;
+# sliding a window over a larger image would change the content as well as its
+# position, and that change dominates the effect being measured.
+
+# %%
+# Environment
+# -----------
+#
+# Imports, versions and the random seed in one cell, so that running it is
+# enough to set the notebook up. Every number below can be checked
+# against a rerun. Following the reproducibility conventions in Rule et al.
+# (2019), every figure and every quantity in this notebook is produced by the
+# code above it - nothing is quoted from a previous run.
+
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,25 +59,6 @@ def spread(values):
 
 x = to_tensor(data.camera())
 batch = torch.cat([torch.roll(x, s, dims=-1) for s in range(SHIFTS)], dim=0)
-
-# %%
-# Objective
-# ---------
-#
-# Measure what a one pixel translation does to each transform in this package,
-# and at what cost in redundancy. The experiment uses circular shifts with
-# periodization padding so that the image content is identical at every offset;
-# sliding a window over a larger image would change the content as well as its
-# position, and that change dominates the effect being measured.
-
-# %%
-# Reproducibility
-# ---------------
-#
-# Versions and the random seed, printed so that any number below can be checked
-# against a rerun. Following the reproducibility conventions in Rule et al.
-# (2019), every figure and every quantity in this notebook is produced by the
-# code above it - nothing is quoted from a previous run.
 
 SEED = 0
 torch.manual_seed(SEED)
