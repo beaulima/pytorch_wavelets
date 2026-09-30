@@ -2,19 +2,60 @@ import torch
 import torch.nn as nn
 from numpy import ndarray, sqrt
 
-from pytorch_wavelets.dtcwt.coeffs import qshift as _qshift, biort as _biort, level1
+from pytorch_wavelets.dtcwt.coeffs import qshift as _qshift, biort as _biort
 from pytorch_wavelets.dtcwt.lowlevel import prep_filt
 from pytorch_wavelets.dtcwt.transform_funcs import FWD_J1, FWD_J2PLUS
 from pytorch_wavelets.dtcwt.transform_funcs import INV_J1, INV_J2PLUS
 from pytorch_wavelets.dtcwt.transform_funcs import get_dimensions6
 from pytorch_wavelets.dwt.lowlevel import mode_to_int
-from pytorch_wavelets.dwt.transform2d import DWTForward, DWTInverse
+
+
+def _load_biort(name):
+    """ The four level 1 filters, refusing the bandpass variant.
+
+    near_sym_b_bp carries a third, diagonal bandpass filter pair that only the
+    ScatterNet layers know how to use; here it used to fail with a bare
+    "too many values to unpack". """
+    filts = _biort(name)
+    if len(filts) != 4:
+        raise ValueError(
+            "biort={!r} has bandpass filters the DTCWT does not implement; "
+            "they are only supported by ScatLayer and ScatLayerj2".format(name))
+    return filts
+
+
+def _load_qshift(name):
+    """ The eight q-shift filters, refusing the bandpass variant. """
+    filts = _qshift(name)
+    if len(filts) != 8:
+        raise ValueError(
+            "qshift={!r} has bandpass filters the DTCWT does not implement; "
+            "it is only supported by ScatLayerj2".format(name))
+    return filts
+
+
+def _is_missing(t):
+    """ True for the ways a coefficient can be left out: None, an empty
+    tensor, or the zero-dimensional placeholder DTCWTForward returns for a
+    skipped scale. """
+    return t is None or t.dim() == 0 or t.numel() == 0
 
 
 def pm(a, b):
     u = (a + b)/sqrt(2)
     v = (a - b)/sqrt(2)
     return u, v
+
+
+def _check_mode(mode):
+    # Only symmetric extension is implemented for the q-shift levels, and it is
+    # also what gives the DTCWT perfect reconstruction. Other modes used to be
+    # accepted and then quietly replaced - by symmetric extension from level 2
+    # on, by zero padding at level 1 - which broke reconstruction.
+    if mode != 'symmetric':
+        raise ValueError(
+            "The DTCWT only supports mode='symmetric', got {!r}".format(mode))
+    return mode
 
 
 class DTCWTForward(nn.Module):
@@ -40,6 +81,8 @@ class DTCWTForward(nn.Module):
             transform.
         o_dim (int): Which dimension to put the orientations in
         ri_dim (int): which dimension to put the real and imaginary parts
+        mode (str): padding scheme. Only 'symmetric' is supported; anything
+            else raises ValueError.
     """
     def __init__(self, biort='near_sym_a', qshift='qshift_a',
                  J=3, skip_hps=False, include_scale=False,
@@ -54,16 +97,16 @@ class DTCWTForward(nn.Module):
         self.J = J
         self.o_dim = o_dim
         self.ri_dim = ri_dim
-        self.mode = mode
+        self.mode = _check_mode(mode)
         if isinstance(biort, str):
-            h0o, _, h1o, _ = _biort(biort)
+            h0o, _, h1o, _ = _load_biort(biort)
             self.register_buffer('h0o', prep_filt(h0o, 1))
             self.register_buffer('h1o', prep_filt(h1o, 1))
         else:
             self.register_buffer('h0o', prep_filt(biort[0], 1))
             self.register_buffer('h1o', prep_filt(biort[1], 1))
         if isinstance(qshift, str):
-            h0a, h0b, _, _, h1a, h1b, _, _ = _qshift(qshift)
+            h0a, h0b, _, _, h1a, h1b, _, _ = _load_qshift(qshift)
             self.register_buffer('h0a', prep_filt(h0a, 1))
             self.register_buffer('h0b', prep_filt(h0b, 1))
             self.register_buffer('h1a', prep_filt(h1a, 1))
@@ -161,6 +204,8 @@ class DTCWTInverse(nn.Module):
         J (int): Number of levels of decomposition.
         o_dim (int):which dimension the orientations are in
         ri_dim (int): which dimension to put th real and imaginary parts in
+        mode (str): padding scheme. Only 'symmetric' is supported; anything
+            else raises ValueError.
     """
 
     def __init__(self, biort='near_sym_a', qshift='qshift_a', o_dim=2,
@@ -170,16 +215,16 @@ class DTCWTInverse(nn.Module):
         self.qshift = qshift
         self.o_dim = o_dim
         self.ri_dim = ri_dim
-        self.mode = mode
+        self.mode = _check_mode(mode)
         if isinstance(biort, str):
-            _, g0o, _, g1o = _biort(biort)
+            _, g0o, _, g1o = _load_biort(biort)
             self.register_buffer('g0o', prep_filt(g0o, 1))
             self.register_buffer('g1o', prep_filt(g1o, 1))
         else:
             self.register_buffer('g0o', prep_filt(biort[0], 1))
             self.register_buffer('g1o', prep_filt(biort[1], 1))
         if isinstance(qshift, str):
-            _, _, g0a, g0b, _, _, g1a, g1b = _qshift(qshift)
+            _, _, g0a, g0b, _, _, g1a, g1b = _load_qshift(qshift)
             self.register_buffer('g0a', prep_filt(g0a, 1))
             self.register_buffer('g0b', prep_filt(g0b, 1))
             self.register_buffer('g1a', prep_filt(g1a, 1))
@@ -203,9 +248,12 @@ class DTCWTInverse(nn.Module):
             Reconstructed output
 
         Note:
-            Can accept Nones or an empty tensor (torch.tensor([])) for the
-            lowpass or bandpass inputs. In this cases, an array of zeros
-            replaces that input.
+            Can accept None for the lowpass or for any of the bandpass inputs,
+            which is then treated as zeros. An empty tensor
+            (``torch.tensor([])``) or the zero-dimensional placeholder the
+            forward transform returns for skipped scales are treated the same
+            way. The lowpass can only be left out if at least one bandpass is
+            given, as its shape is worked out from them.
 
         Note:
             :math:`H_{in}', W_{in}', H_{in}'', W_{in}''` are the shapes of a
@@ -221,6 +269,11 @@ class DTCWTInverse(nn.Module):
         mode = mode_to_int(self.mode)
         _, _, h_dim, w_dim = get_dimensions6(
             self.o_dim, self.ri_dim)
+        # One spelling for a missing bandpass from here on.
+        highs = [None if _is_missing(s) else s for s in highs]
+        if _is_missing(low):
+            highs, low = self._zero_lowpass(highs)
+            J = len(highs)
         for j, s in zip(range(J-1, 0, -1), highs[1:][::-1]):
             if s is not None and s.shape != torch.Size([]):
                 assert s.shape[self.o_dim] == 6, "Inverse transform must " \
@@ -253,4 +306,24 @@ class DTCWTInverse(nn.Module):
                            self.ri_dim, mode)
         return low
 
+    def _zero_lowpass(self, highs):
+        """ Stand-in for a missing lowpass: the highpasses to reconstruct
+        from, and zeros for the lowpass that feeds the first of them.
 
+        With no lowpass, the levels coarser than the coarsest bandpass given
+        see nothing but zeros and contribute nothing, so reconstruction can
+        start from that bandpass instead - whose lowpass input is exactly
+        twice its size, with no guessing about the padding in between.
+        """
+        for j in range(len(highs) - 1, -1, -1):
+            s = highs[j]
+            if _is_missing(s):
+                continue
+            o, ri = self.o_dim % 6, self.ri_dim % 6
+            # Dropping the orientation and real/imaginary axes leaves
+            # (N, C, H, W) in order, wherever those two axes were put.
+            s = s.select(max(o, ri), 0).select(min(o, ri), 0)
+            n, c, h, w = s.shape
+            return highs[:j + 1], s.new_zeros(n, c, 2 * h, 2 * w)
+        raise ValueError("Cannot invert a DTCWT with no lowpass and no "
+                         "bandpass coefficients: nothing gives the shape")

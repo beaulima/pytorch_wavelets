@@ -8,42 +8,10 @@ from pytorch_wavelets.dtcwt.transform_funcs import fwd_j2plus, inv_j2plus
 from pytorch_wavelets.dtcwt.transform_funcs import fwd_j2plus_rot, inv_j2plus_rot
 
 
-def mode_to_int(mode):
-    if mode == 'zero':
-        return 0
-    elif mode == 'symmetric':
-        return 1
-    elif mode == 'per' or mode == 'periodization':
-        return 2
-    elif mode == 'constant':
-        return 3
-    elif mode == 'reflect':
-        return 4
-    elif mode == 'replicate':
-        return 5
-    elif mode == 'periodic':
-        return 6
-    else:
-        raise ValueError("Unkown pad type: {}".format(mode))
-
-
-def int_to_mode(mode):
-    if mode == 0:
-        return 'zero'
-    elif mode == 1:
-        return 'symmetric'
-    elif mode == 2:
-        return 'periodization'
-    elif mode == 3:
-        return 'constant'
-    elif mode == 4:
-        return 'reflect'
-    elif mode == 5:
-        return 'replicate'
-    elif mode == 6:
-        return 'periodic'
-    else:
-        raise ValueError("Unkown pad type: {}".format(mode))
+# mode_to_int / int_to_mode were duplicated here verbatim from the DWT module.
+# Re-exported instead so the two encodings cannot drift apart - the DTCWT
+# module already imports them from there.
+from pytorch_wavelets.dwt.lowlevel import mode_to_int, int_to_mode  # noqa: F401
 
 
 class SmoothMagFn(torch.autograd.Function):
@@ -51,20 +19,22 @@ class SmoothMagFn(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x, y, b):
         r = torch.sqrt(x**2 + y**2 + b**2)
-        if x.requires_grad:
-            dx = x/r
-            dy = y/r
-            ctx.save_for_backward(dx, dy)
+        # Either input may need a gradient independently of the other, so the
+        # partials have to be saved whenever one of them does.
+        if x.requires_grad or y.requires_grad:
+            ctx.save_for_backward(x/r, y/r)
 
         return r - b
 
     @staticmethod
     def backward(ctx, dr):
-        dx = None
-        if ctx.needs_input_grad[0]:
+        dx, dy = None, None
+        if ctx.needs_input_grad[0] or ctx.needs_input_grad[1]:
             drdx, drdy = ctx.saved_tensors
-            dx = drdx * dr
-            dy = drdy * dr
+            if ctx.needs_input_grad[0]:
+                dx = drdx * dr
+            if ctx.needs_input_grad[1]:
+                dy = drdy * dr
         return dx, dy, None
 
 

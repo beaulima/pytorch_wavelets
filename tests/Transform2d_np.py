@@ -5,35 +5,8 @@ import numpy as np
 from dtcwt.numpy import Transform2d as Transform2d_np
 from dtcwt.numpy import Pyramid
 
-
-def appropriate_complex_type_for(X):
-    """Return an appropriate complex data type depending on the type of X. If X
-    is already complex, return that, if it is floating point return a complex
-    type of the appropriate size and if it is integer, choose an complex
-    floating point type depending on the result of :py:func:`numpy.asfarray`.
-
-    """
-    X = asfarray(X)
-    if np.issubsctype(X.dtype, np.complex64) or \
-            np.issubsctype(X.dtype, np.complex128):
-        return X.dtype
-    elif np.issubsctype(X.dtype, np.float32):
-        return np.complex64
-    elif np.issubsctype(X.dtype, np.float64):
-        return np.complex128
-
-    # God knows, err on the side of caution
-    return np.complex128
-
-
-def asfarray(X):
-    """Similar to :py:func:`numpy.asfarray` except that this function tries to
-    preserve the original datatype of X if it is already a floating point type
-    and will pass floating point arrays through directly without copying.
-
-    """
-    X = np.asanyarray(X)
-    return np.asfarray(X, dtype=X.dtype)
+# The library's own copies, which also work under NumPy 2.
+from pytorch_wavelets.utils import appropriate_complex_type_for, asfarray
 
 
 class Transform2d(object):

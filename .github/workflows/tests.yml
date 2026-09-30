@@ -1,0 +1,170 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Monday 04:00 UTC, so the slow gradchecks run at least weekly even if
+    # nothing lands on master.
+    - cron: '0 4 * * 1'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Every job only reads the repository. Without this the GITHUB_TOKEN gets the
+# repository's default permissions, which can include write access.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # The dtcwt reference package in the test extra pins numpy<2, which has
+        # no wheels past Python 3.12; newer Pythons run in the numpy2 job.
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      # The default PyPI torch wheel bundles CUDA and is ~2.5GB. The runners
+      # have no GPU, so pull the CPU build instead - it is an order of
+      # magnitude smaller and satisfies the torch requirement, so the install
+      # below will not replace it.
+      - name: Install CPU-only torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install package and test dependencies
+        run: pip install ".[test]"
+
+      - name: Show the resolved environment
+        run: pip list
+
+      - name: Run tests
+        run: pytest --cov --cov-report=term
+
+  numpy2:
+    name: numpy 2 / py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12 overlaps the numpy 1 jobs, so a failure that shows up only here
+        # is down to numpy rather than python. 3.13 and 3.14 can only be tested
+        # this way.
+        python-version: ['3.12', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install CPU-only torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      # Not the `test` extra: it brings the dtcwt reference package, which
+      # pins numpy<2 and would drag the whole job back to NumPy 1 - the only
+      # numpy the other jobs ever see. tests/conftest.py leaves out the files
+      # that compare against dtcwt when it is absent; everything else runs.
+      - name: Install package and test dependencies, with NumPy 2
+        run: pip install . "numpy>=2" pytest pytest-cov
+
+      - name: Check that NumPy 2 is what got installed
+        run: |
+          python -c "import numpy, sys; print('numpy', numpy.__version__); sys.exit(int(numpy.__version__.split('.')[0]) < 2)"
+
+      - name: Show the resolved environment
+        run: pip list
+
+      - name: Run tests
+        run: pytest --cov --cov-report=term
+
+  slow:
+    name: slow gradchecks
+    runs-on: ubuntu-latest
+    # 24 minutes on a laptop GPU, dominated by eight ScatLayerj2 gradchecks at
+    # ~2 minutes each. A CPU runner is slower, hence the generous cap.
+    timeout-minutes: 120
+    # Kept off the pull request path so PRs stay fast; these run on master,
+    # on the weekly schedule, and on demand.
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install CPU-only torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install package and test dependencies
+        run: pip install ".[test]"
+
+      # These compare full-size analytical gradients against finite
+      # differences. They are excluded from the default run by an addopts
+      # marker filter, not skipped.
+      - name: Run the slow gradchecks
+        run: pytest -m slow
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install flake8
+
+      # A full run against .flake8, which ignores two cosmetic classes the
+      # codebase uses consistently (E226/E231 tight spacing) and nothing else.
+      - name: Lint
+        run: flake8 --show-source pytorch_wavelets tests examples benchmarks tools
+
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install CPU-only torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install package and doc dependencies
+        run: pip install ".[docs]"
+
+      # -W turns warnings into errors: the build is clean today and should
+      # stay that way.
+      - name: Build the docs
+        run: sphinx-build -b html -W docs docs/_build/html
+
+      # notebooks/ is generated from examples/, so it can go stale silently.
+      - name: Check notebooks/ is in step with examples/
+        run: python tools/make_notebooks.py --check

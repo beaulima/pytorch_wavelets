@@ -6,7 +6,6 @@ from pytorch_wavelets import DTCWTForward, DTCWTInverse
 from pytorch_wavelets.dtcwt.coeffs import biort as _biort, qshift as _qshift
 import datasets
 import torch
-import py3nvml
 from contextlib import contextmanager
 PRECISION_FLOAT = 3
 PRECISION_DOUBLE = 7
@@ -28,11 +27,10 @@ def set_double_precision():
         torch.set_default_dtype(old_prec)
 
 
-def setup():
+def setup_module():
     global barbara, barbara_t
     global bshape, bshape_half
     global ch
-    py3nvml.grab_gpus(1, gpu_fraction=0.5, env_set_ok=True)
     barbara = datasets.barbara()
     barbara = (barbara/barbara.max()).astype('float32')
     barbara = barbara.transpose([2, 0, 1])
@@ -99,13 +97,13 @@ def test_fwd(J, o_dim):
     np.testing.assert_array_almost_equal(
         Yl.cpu(), yl, decimal=PRECISION_FLOAT)
     for i in range(len(yh)):
-        for l in range(6):
-            ours_r = np.take(Yh[i][...,0].cpu().numpy(), l, o_dim)
-            ours_i = np.take(Yh[i][...,1].cpu().numpy(), l, o_dim)
+        for orient in range(6):
+            ours_r = np.take(Yh[i][...,0].cpu().numpy(), orient, o_dim)
+            ours_i = np.take(Yh[i][...,1].cpu().numpy(), orient, o_dim)
             np.testing.assert_array_almost_equal(
-                ours_r, yh[i][:,:,l].real, decimal=PRECISION_FLOAT)
+                ours_r, yh[i][:,:,orient].real, decimal=PRECISION_FLOAT)
             np.testing.assert_array_almost_equal(
-                ours_i, yh[i][:,:,l].imag, decimal=PRECISION_FLOAT)
+                ours_i, yh[i][:,:,orient].imag, decimal=PRECISION_FLOAT)
 
 
 @pytest.mark.parametrize("J, o_dim", [
@@ -126,13 +124,13 @@ def test_fwd_double(J, o_dim):
     np.testing.assert_array_almost_equal(
         Yl.cpu(), yl, decimal=PRECISION_DOUBLE)
     for i in range(len(yh)):
-        for l in range(6):
-            ours_r = np.take(Yh[i][...,0].cpu().numpy(), l, o_dim)
-            ours_i = np.take(Yh[i][...,1].cpu().numpy(), l, o_dim)
+        for orient in range(6):
+            ours_r = np.take(Yh[i][...,0].cpu().numpy(), orient, o_dim)
+            ours_i = np.take(Yh[i][...,1].cpu().numpy(), orient, o_dim)
             np.testing.assert_array_almost_equal(
-                ours_r, yh[i][:,:,l].real, decimal=PRECISION_DOUBLE)
+                ours_r, yh[i][:,:,orient].real, decimal=PRECISION_DOUBLE)
             np.testing.assert_array_almost_equal(
-                ours_i, yh[i][:,:,l].imag, decimal=PRECISION_DOUBLE)
+                ours_i, yh[i][:,:,orient].imag, decimal=PRECISION_DOUBLE)
 
 
 @pytest.mark.parametrize("J, o_dim", [
@@ -155,13 +153,13 @@ def test_fwd_skip_hps(J, o_dim):
         if hps[j]:
             assert Yh[j].shape == torch.Size([])
         else:
-            for l in range(6):
-                ours_r = np.take(Yh[j][...,0].cpu().numpy(), l, o_dim)
-                ours_i = np.take(Yh[j][...,1].cpu().numpy(), l, o_dim)
+            for orient in range(6):
+                ours_r = np.take(Yh[j][...,0].cpu().numpy(), orient, o_dim)
+                ours_i = np.take(Yh[j][...,1].cpu().numpy(), orient, o_dim)
                 np.testing.assert_array_almost_equal(
-                    ours_r, yh[j][:,:,l].real, decimal=PRECISION_FLOAT)
+                    ours_r, yh[j][:,:,orient].real, decimal=PRECISION_FLOAT)
                 np.testing.assert_array_almost_equal(
-                    ours_i, yh[j][:,:,l].imag, decimal=PRECISION_FLOAT)
+                    ours_i, yh[j][:,:,orient].imag, decimal=PRECISION_FLOAT)
 
 
 @pytest.mark.parametrize("scales", [
@@ -205,13 +203,13 @@ def test_fwd_ri_dim(o_dim, ri_dim):
     for i in range(len(yh)):
         ours_r = np.take(Yh[i].cpu().numpy(), 0, ri_dim)
         ours_i = np.take(Yh[i].cpu().numpy(), 1, ri_dim)
-        for l in range(6):
-            ours = np.take(ours_r, l, o_dim)
+        for orient in range(6):
+            ours = np.take(ours_r, orient, o_dim)
             np.testing.assert_array_almost_equal(
-                ours, yh[i][:,:,l].real, decimal=PRECISION_FLOAT)
-            ours = np.take(ours_i, l, o_dim)
+                ours, yh[i][:,:,orient].real, decimal=PRECISION_FLOAT)
+            ours = np.take(ours_i, orient, o_dim)
             np.testing.assert_array_almost_equal(
-                ours, yh[i][:,:,l].imag, decimal=PRECISION_FLOAT)
+                ours, yh[i][:,:,orient].imag, decimal=PRECISION_FLOAT)
 
 
 @pytest.mark.parametrize("scales", [
@@ -240,8 +238,8 @@ def test_bwd_include_scale(scales):
 ])
 def test_inv(J, o_dim):
     Yl = 100*np.random.randn(3, 5, 64, 64)
-    Yhr = [[np.random.randn(3, 5, 2**j, 2**j) for l in range(6)] for j in range(4+J,4,-1)]
-    Yhi = [[np.random.randn(3, 5, 2**j, 2**j) for l in range(6)] for j in range(4+J,4,-1)]
+    Yhr = [[np.random.randn(3, 5, 2**j, 2**j) for _ in range(6)] for j in range(4+J,4,-1)]
+    Yhi = [[np.random.randn(3, 5, 2**j, 2**j) for _ in range(6)] for j in range(4+J,4,-1)]
     Yh1 = [np.stack(r, axis=2) + 1j*np.stack(i, axis=2) for r, i in zip(Yhr, Yhi)]
     Yh2 = [np.stack((np.stack(r, axis=o_dim), np.stack(i, axis=o_dim)), axis=-1)
            for r, i in zip(Yhr, Yhi)]
@@ -263,8 +261,8 @@ def test_inv(J, o_dim):
 def test_inv_skip_hps(J, o_dim):
     hps = np.random.binomial(size=J, n=1,p=0.5).astype('bool')
     Yl = 100*np.random.randn(3, 5, 64, 64)
-    Yhr = [[np.random.randn(3, 5, 2**j, 2**j) for l in range(6)] for j in range(4+J,4,-1)]
-    Yhi = [[np.random.randn(3, 5, 2**j, 2**j) for l in range(6)] for j in range(4+J,4,-1)]
+    Yhr = [[np.random.randn(3, 5, 2**j, 2**j) for _ in range(6)] for j in range(4+J,4,-1)]
+    Yhi = [[np.random.randn(3, 5, 2**j, 2**j) for _ in range(6)] for j in range(4+J,4,-1)]
     Yh1 = [np.stack(r, axis=2) + 1j*np.stack(i, axis=2) for r, i in zip(Yhr, Yhi)]
     Yh2 = [np.stack((np.stack(r, axis=o_dim), np.stack(i, axis=o_dim)), axis=-1)
            for r, i in zip(Yhr, Yhi)]
@@ -411,3 +409,99 @@ def test_gradients_inv(biort, qshift, size, J):
     # check the bandpasses are the same
     for y, ref in zip(yhv, ref_bp):
         np.testing.assert_array_almost_equal(y.grad.detach().cpu(), ref.cpu())
+
+
+@pytest.mark.parametrize("mode", ['zero', 'reflect', 'periodization',
+                                  'periodic'])
+def test_unsupported_mode_is_rejected(mode):
+    """ Anything but symmetric extension used to be accepted and then quietly
+    replaced - by zero padding at level 1, by symmetric extension below - with
+    the reconstruction off by a third of the signal. It is now refused. """
+    with pytest.raises(ValueError, match='symmetric'):
+        DTCWTForward(mode=mode)
+    with pytest.raises(ValueError, match='symmetric'):
+        DTCWTInverse(mode=mode)
+
+
+def test_scatlayerj2_unsupported_mode_is_rejected():
+    from pytorch_wavelets import ScatLayer, ScatLayerj2
+    # Used to be accepted, then raise a bare NotImplementedError in forward.
+    with pytest.raises(ValueError, match='symmetric'):
+        ScatLayerj2(mode='zero')
+    with pytest.raises(ValueError):
+        ScatLayer(mode='periodization')
+    ScatLayer(mode='zero')
+
+
+def test_lowlevel_filters_reject_unknown_mode():
+    from pytorch_wavelets.dtcwt.lowlevel import colfilter, rowfilter
+    x = torch.randn(1, 1, 8, 8)
+    h = torch.randn(1, 1, 5, 1)
+    for f in (colfilter, rowfilter):
+        with pytest.raises(ValueError):
+            f(x, h, 'reflect')
+
+
+@pytest.mark.parametrize("mode", ['symmetric', 'zero'])
+def test_fwd_j1_skip_hps_gradient(mode):
+    """ With the level 1 highpasses skipped, the backward pass reconstructs
+    from the lowpass alone - and used to do so with symmetric extension
+    whatever the mode, which is the wrong adjoint for zero padding. """
+    from torch.autograd import gradcheck
+    from pytorch_wavelets.dtcwt.transform_funcs import FWD_J1
+    from pytorch_wavelets.dtcwt.lowlevel import prep_filt
+    from pytorch_wavelets.dwt.lowlevel import mode_to_int
+    h0o, _, h1o, _ = _biort('near_sym_a')
+    with set_double_precision():
+        h0, h1 = prep_filt(h0o, 1), prep_filt(h1o, 1)
+    x = torch.randn(1, 1, 8, 8, dtype=torch.float64, requires_grad=True)
+    assert gradcheck(
+        lambda x: FWD_J1.apply(x, h0, h1, True, 2, -1, mode_to_int(mode))[0],
+        (x,), eps=1e-6, atol=1e-6)
+
+
+@pytest.mark.parametrize("J", [1, 2, 3])
+@pytest.mark.parametrize("size", [32, 30, 37])
+@pytest.mark.parametrize("missing", [None, 'empty', 'scalar'])
+def test_inv_without_lowpass(J, size, missing):
+    """ The docstring always promised None for the lowpass; it used to raise
+    AttributeError. Leaving it out must equal passing zeros. """
+    with set_double_precision():
+        xfm = DTCWTForward(J=J)
+        ifm = DTCWTInverse()
+    x = torch.randn(2, 3, size, size, dtype=torch.float64)
+    yl, yh = xfm(x)
+    ref = ifm((torch.zeros_like(yl), yh))
+    low = {None: None, 'empty': torch.tensor([]),
+           'scalar': yl.new_zeros([])}[missing]
+    torch.testing.assert_close(ifm((low, yh)), ref)
+
+
+@pytest.mark.parametrize("o_dim, ri_dim", [(2, -1), (1, -1), (1, 2), (2, 3)])
+def test_inv_without_lowpass_or_coarse_bandpasses(o_dim, ri_dim):
+    """ Only the finest bandpass given: the coarser levels are all zeros, and
+    the lowpass shape has to come from the finest level. """
+    with set_double_precision():
+        xfm = DTCWTForward(J=3, o_dim=o_dim, ri_dim=ri_dim)
+        ifm = DTCWTInverse(o_dim=o_dim, ri_dim=ri_dim)
+    x = torch.randn(1, 2, 36, 44, dtype=torch.float64)
+    yl, yh = xfm(x)
+    ref = ifm((torch.zeros_like(yl),
+               [yh[0], torch.zeros_like(yh[1]), torch.zeros_like(yh[2])]))
+    out = ifm((None, [yh[0], None, torch.tensor([])]))
+    torch.testing.assert_close(out, ref)
+
+
+def test_inv_with_nothing_raises():
+    with pytest.raises(ValueError, match='no lowpass'):
+        DTCWTInverse()((None, [None, None]))
+
+
+@pytest.mark.parametrize("kwargs", [dict(biort='near_sym_b_bp'),
+                                    dict(qshift='qshift_b_bp')])
+def test_bandpass_filters_are_rejected_clearly(kwargs):
+    """ The _bp filter sets carry a third filter pair only the ScatterNet
+    uses; the DTCWT used to fail on them with "too many values to unpack". """
+    for cls in (DTCWTForward, DTCWTInverse):
+        with pytest.raises(ValueError, match='ScatLayer'):
+            cls(**kwargs)

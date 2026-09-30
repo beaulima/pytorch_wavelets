@@ -1,23 +1,37 @@
 2D Wavelet Transforms in Pytorch
 ================================
 
-|build-status| |docs| |doi|
+|build-status| |doi|
 
-.. |build-status| image:: https://travis-ci.org/fbcotter/pytorch_wavelets.png?branch=master
+.. |build-status| image:: https://github.com/beaulima/pytorch_wavelets/actions/workflows/tests.yml/badge.svg?branch=master
     :alt: build status
-    :scale: 100%
-    :target: https://travis-ci.org/fbcotter/pytorch_wavelets
-
-.. |docs| image:: https://readthedocs.org/projects/pytorch-wavelets/badge/?version=latest
-    :target: https://pytorch-wavelets.readthedocs.io/en/latest/?badge=latest
-    :alt: Documentation Status
+    :target: https://github.com/beaulima/pytorch_wavelets/actions/workflows/tests.yml
 
 .. |doi| image:: https://zenodo.org/badge/146817005.svg
+   :alt: DOI of the original pytorch_wavelets
    :target: https://zenodo.org/badge/latestdoi/146817005
-   
-The full documentation is also available `here`__.
 
-__ http://pytorch-wavelets.readthedocs.io/
+.. note::
+
+   This is a fork of Fergal Cotter's `pytorch_wavelets`__, whose last release
+   is 1.3.0. The fork is **not published on PyPI**: ``pip install
+   pytorch_wavelets`` installs that original release, not this. Install this
+   one from GitHub::
+
+       pip install "pytorch_wavelets @ git+https://github.com/beaulima/pytorch_wavelets.git"
+
+   Its documentation is not hosted either - the one at
+   pytorch-wavelets.readthedocs.io describes the original. Build it with
+   ``make docs`` (see Installation below).
+
+__ https://github.com/fbcotter/pytorch_wavelets
+
+The documentation includes a gallery of worked examples covering the DWT
+basics, the DTCWT's directional selectivity, shift invariance, denoising and
+optimising through the transform. Every example is executed when the
+documentation is built, and can be downloaded as a script or a notebook. The
+same demos are committed as notebooks under ``notebooks/``, generated from the
+gallery scripts and checked in CI to be in step with them.
 
 This package provides support for computing the 2D discrete wavelet and 
 the 2d dual-tree complex wavelet transforms, their inverses, and passing 
@@ -29,9 +43,117 @@ We use the standard pytorch implementation of having 'NCHW' data format.
 We also have added layers to do the 2-D DTCWT based scatternet. This is similar
 to the Morlet based scatternet in `KymatIO`__, but is roughly 10 times faster.
 
-If you use this repo, please cite my PhD thesis, chapter 3: https://doi.org/10.17863/CAM.53748.
+If you use this repo, please cite Fergal Cotter's PhD thesis, chapter 3, where
+these transforms were developed: https://doi.org/10.17863/CAM.53748.
 
 __ https://github.com/kymatio/kymatio
+
+New in version 1.4.0
+~~~~~~~~~~~~~~~~~~~~
+
+**This release requires torch 2.6 or newer and Python 3.10 or newer.** The
+previous floor of torch 1.0.0 had not reflected anything the library was
+tested against for years, and Python 3.9 reached its end of life in October
+2025; torch itself stopped publishing 3.9 wheels after 2.8.
+
+The changes below alter results for existing code. All but the last are
+corrections rather than API changes; the last turns silently wrong output into
+an error. They are worth reading before upgrading.
+
+- **The DWT gradients were wrong for the** ``symmetric`` **and** ``reflect``
+  **padding schemes.** Every analysis and synthesis Function computed its
+  backward pass as a synthesis filter bank applied to the incoming gradient,
+  which is the exact adjoint only for zero or periodic extension. The error
+  reached 96% in relative terms and was not confined to the boundary. The
+  ``periodization`` gradient was also wrong for odd-length inputs, where the
+  sample the forward transform appends was cropped instead of folded back.
+  Anything trained with those padding schemes will now see different - correct
+  - gradients. The default ``zero`` mode was always exact.
+- **The ScatterNet filters are registered as buffers** rather than
+  ``nn.Parameter(requires_grad=False)``, so they no longer appear in
+  ``.parameters()`` and an optimiser will not apply weight decay to them. The
+  ``state_dict`` keys are unchanged, so existing checkpoints keep loading, but
+  ``optim.SGD(ScatLayer().parameters())`` now raises "empty parameter list".
+- ``periodization`` **was wrong whenever the wavelet was longer than the
+  signal**, which happens a few levels into any multilevel transform (``db10``
+  on a 64x64 image at ``J=4``, say). The convolution overhang was folded back
+  only once, so the coefficients differed from PyWavelets by as much as the
+  signal itself and the transform was no longer invertible. Forward, inverse
+  and gradients are now exact for any filter length, in 1D and 2D, separable
+  or not.
+- **The inverse DWT dropped the gradient of the highpass coefficients when the
+  lowpass did not require one** - learning the details over a detached
+  lowpass, for instance. The coarsest scale got ``grad = None``.
+- **The DTCWT's** ``mode`` **argument is now checked.** Only ``'symmetric'``
+  was ever implemented: other values were accepted, then silently replaced by
+  zero padding at level 1 and symmetric extension below, which broke perfect
+  reconstruction. ``DTCWTForward``, ``DTCWTInverse`` and ``ScatLayerj2`` now
+  raise ValueError for anything but ``'symmetric'``; ``ScatLayer`` accepts
+  ``'symmetric'`` and ``'zero'`` as documented.
+
+New features:
+
+- The 2D stationary (undecimated) wavelet transform is now part of the public
+  API. ``SWTForward`` was reachable but broken for more than one level, and
+  ``SWTInverse`` could not even be imported and performed a decimated
+  synthesis. Both are fixed, exported and documented; the inverse is a real
+  undecimated reconstruction, validated against ``pywt.iswt2``.
+- ``DWTForward``/``DWTInverse`` accept the ``separable`` flag the docs have
+  advertised since v1.0.0. See the measured trade-off in the DWT docs.
+
+Other fixes:
+
+- ``mode='reflect'`` works when the wavelet is longer than the signal, where it
+  used to raise RuntimeError.
+- ``mypad`` raised IndexError whenever both axes were padded.
+- ``DWTInverse`` failed on any input that was not float32 when a highpass was
+  given as None; the zeros standing in for it are now of the input's dtype.
+- ``DTCWTInverse`` raised AttributeError when the lowpass was None, which its
+  documentation has always allowed. None, an empty tensor or the placeholder
+  of a skipped scale now all stand for zeros, for the lowpass and the
+  bandpasses alike.
+- ``AFB2D``/``SFB2D`` applied the column filters across the rows when given
+  four distinct filters.
+- The DWT, 1D DWT and SWT modules check their ``mode`` when they are built,
+  and raise ValueError naming the valid ones. A typo used to be accepted and
+  only fail at the first forward pass; ``'constant'`` and ``'replicate'``,
+  which the decimated transforms never implemented, failed deep inside
+  ``afb1d``. The SWT still accepts both.
+- ``DTCWTForward``/``DTCWTInverse`` given ``near_sym_b_bp`` or ``qshift_b_bp``
+  failed with "too many values to unpack"; they now say that those bandpass
+  filter sets are only supported by the ScatterNet layers.
+- ``pytorch_wavelets.utils.asfarray`` and ``appropriate_complex_type_for``
+  raised AttributeError under NumPy 2, which removed ``np.asfarray`` and
+  ``np.issubsctype``. They no longer depend on either.
+- ``SmoothMagFn`` raised UnboundLocalError when only its second input needed a
+  gradient, and ``ScatLayerj2`` recorded ``biort`` as its ``qshift``.
+- Coefficients load through ``importlib.resources`` instead of the deprecated
+  ``pkg_resources``.
+
+Packaging and infrastructure:
+
+- ``pyproject.toml`` replaces ``setup.py``, and ``PyWavelets`` is declared as
+  the runtime dependency it has always been - a clean ``pip install`` used to
+  fail on import.
+- A ``Makefile`` builds a conda/mamba environment; ``make help`` lists the
+  targets.
+- GitHub Actions replaces the dead Travis config, covering Python 3.10 to 3.14.
+  The long gradchecks are marked ``slow`` and run in their own job rather than
+  being skipped outright; small-input gradchecks of every DTCWT and ScatterNet
+  backward pass run on each pull request. A separate job runs the tests under
+  NumPy 2, leaving out only the comparisons against the ``dtcwt`` reference
+  package, which cannot be installed alongside it.
+- The documentation builds again, and a test suite executes every example it
+  prints.
+- ``pytorch_wavelets.dtcwt.lowlevel2`` is removed. It was an abandoned attempt
+  at a DTCWT built from four DWTs - slower, by its own docstring, than the
+  real one - that nothing used, documented or tested; ``DTCWTForward2``,
+  ``DTCWTInverse2`` and the ``quad_*`` filter banks went with it, as did the
+  ``roll`` helper in ``pytorch_wavelets.dwt.lowlevel`` that only it called.
+- The profiling scripts and the stability notebook move from ``tests/`` to
+  ``benchmarks/``, repaired to run on current torch. The nvprof-only scripts
+  are gone, and so is the ``py3nvml`` test dependency, which only served to
+  pick a GPU by setting ``CUDA_VISIBLE_DEVICES`` for the whole test session.
 
 New in version 1.3.0
 ~~~~~~~~~~~~~~~~~~~~
@@ -115,32 +237,42 @@ filters for subsequent scales. For the dwt we use the `db4` filters.
 For a fixed input size, but varying the number of scales (from 1 to 4) we have
 the following speeds (averaged over 5 runs):
 
-.. raw:: html
-
-    <img src="docs/scale.png" width="700px">
+.. image:: https://raw.githubusercontent.com/beaulima/pytorch_wavelets/master/docs/scale.png
+    :width: 700px
 
 For an input size with height and width 512 by 512, we also vary the batch size
 for a 3 scale transform. The resulting speeds were:
 
-.. raw:: html
-
-    <img src="docs/batchsize.png" width="700px">
+.. image:: https://raw.githubusercontent.com/beaulima/pytorch_wavelets/master/docs/batchsize.png
+    :width: 700px
 
 Installation
 ````````````
-The easiest way to install ``pytorch_wavelets`` is to clone the repo and pip install
-it. Later versions will be released on PyPi but the docs need to updated first::
+The recommended way is to use the provided ``Makefile``, which builds a
+self-contained conda/mamba environment (a `miniforge
+<https://github.com/conda-forge/miniforge>`_ install gives you both)::
 
-    $ git clone https://github.com/fbcotter/pytorch_wavelets
+    $ git clone https://github.com/beaulima/pytorch_wavelets
     $ cd pytorch_wavelets
+    $ make dev
+
+``make dev`` creates the environment described in ``environment.yml``, installs
+``pytorch_wavelets`` into it in editable mode, and checks that it imports. The
+environment name and python version are configurable::
+
+    $ make dev ENV_NAME=pw-cuda PYTHON_VERSION=3.12
+
+Run ``make help`` for the full list of targets (``test``, ``test-cov``,
+``lint``, ``docs``, ``build``, ``clean``, ``clean-env``). A test suite is
+provided so that you may verify the code works on your system::
+
+    $ make test
+
+If you would rather manage the environment yourself, a plain pip install works
+too - the dependencies are declared in ``pyproject.toml``::
+
     $ pip install .
-
-(Although the `develop` command may be more useful if you intend to perform any
-significant modification to the library.) A test suite is provided so that you
-may verify the code works on your system::
-
-    $ pip install -r tests/requirements.txt
-    $ pytest tests/
+    $ pip install ".[test]" && pytest
 
 Example Use
 ```````````
@@ -214,9 +346,9 @@ To test whether the repo is working on your gpu, you can download the repo,
 ensure you have pytorch with cuda enabled (the tests will check to see if
 :code:`torch.cuda.is_available()` returns true), and run:
 
-.. code:: 
+.. code::
 
-    pip install -r tests/requirements.txt
+    pip install ".[test]"
     pytest tests/
 
 From the base of the repo.
@@ -232,9 +364,8 @@ attribute set to true.
 Provenance
 ~~~~~~~~~~
 Based on the Dual-Tree Complex Wavelet Transform Pack for MATLAB by Nick
-Kingsbury, Cambridge University. The original README can be found in
-ORIGINAL_README.txt.  This file outlines the conditions of use of the original
-MATLAB toolbox.
+Kingsbury, Cambridge University. The conditions of use of the original MATLAB
+toolbox are summarised in the ``LICENSE`` file at the root of this repo.
 
 Further information on the DT CWT can be obtained from papers
 downloadable from my website (given below). The best tutorial is in

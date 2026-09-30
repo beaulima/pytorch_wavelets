@@ -7,7 +7,6 @@ from dtcwt.numpy.lowlevel import coldfilt as np_coldfilt
 import datasets
 from pytorch_wavelets.dtcwt.lowlevel import coldfilt, prep_filt
 import torch
-import py3nvml
 
 HAVE_GPU = torch.cuda.is_available()
 if HAVE_GPU:
@@ -16,11 +15,10 @@ else:
     dev = torch.device('cpu')
 
 
-def setup():
+def setup_module():
     global barbara, barbara_t
     global bshape, bshape_half
     global ref_coldfilt, ch
-    py3nvml.grab_gpus(1, gpu_fraction=0.5, env_set_ok=True)
     barbara = datasets.barbara()
     barbara = (barbara/barbara.max()).astype('float32')
     barbara = barbara.transpose([2, 0, 1])
@@ -32,8 +30,8 @@ def setup():
     ch = barbara_t.shape[1]
 
     # Some useful functions
-    ref_coldfilt = lambda x, ha, hb: np.stack(
-        [np_coldfilt(s, ha, hb) for s in x], axis=0)
+    def ref_coldfilt(x, ha, hb):
+        return np.stack([np_coldfilt(s, ha, hb) for s in x], axis=0)
 
 
 def test_barbara_loaded():

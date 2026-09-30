@@ -1,0 +1,30 @@
+# Read the Docs build configuration.
+# https://docs.readthedocs.io/en/stable/config-file/v2.html
+#
+# Without this file Read the Docs falls back to a default build that never
+# installs the package, so autodoc cannot import pytorch_wavelets and the
+# |docs| badge in the README reports on a build that does not reflect the repo.
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.11"
+  jobs:
+    pre_install:
+      # autodoc imports the package, so torch has to be importable. The default
+      # PyPI wheel bundles CUDA and is around 2.5GB, which does not belong on a
+      # docs builder - the CPU build is all that is needed, same as in CI.
+      - pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+sphinx:
+  configuration: docs/conf.py
+  # Matches the CI docs job, which builds with -W. The build is clean today.
+  fail_on_warning: true
+
+python:
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs

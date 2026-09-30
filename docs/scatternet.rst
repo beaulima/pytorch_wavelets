@@ -48,7 +48,7 @@ The original ScatterNet paper introduced 3 main desirable properties of the Scat
 3. Invariant to small deformations
 
 We test these 3 properties and compare the DTCWT implementation to the Morlet based one. The experiment code can be
-found on the github for this repo under `tests/Measure of Stability.ipynb`. We take 1000 samples (:math:`x`) from Tiny Imagenet, 
+found on the github for this repo under ``benchmarks/measure_of_stability.ipynb``. We take 1000 samples (:math:`x`) from Tiny Imagenet, 
 apply these transformations (:math:`y = F(x)`) and measure the average distance between the scattered outputs 
 :math:`\frac{1}{N}||Sx - Sy||^2` and compare it to the distance of the inputs :math:`\frac{1}{N}||x-y||^2`. The results were:
 
