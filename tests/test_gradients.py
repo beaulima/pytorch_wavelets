@@ -127,3 +127,66 @@ def test_end_to_end_gradient(double, mode, size):
         ifm(xfm(x)).pow(2).sum().backward()
         assert x.grad is not None
         assert torch.isfinite(x.grad).all()
+
+
+@pytest.mark.parametrize('separable', [True, False])
+def test_inverse_gradient_wrt_highpass_alone(double, separable):
+    """ The highpass must get a gradient even when the lowpass does not ask for
+    one - the case of learning the details over a detached lowpass. SFB2D used
+    to skip its whole backward pass whenever the lowpass needed no gradient,
+    so the coarsest highpass came back with grad None.
+    """
+    x = torch.randn(1, 2, 16, 16)
+    yl, yh = DWTForward(J=2, wave='db2', separable=separable)(x)
+    yh = [h.detach().requires_grad_() for h in yh]
+    ifm = DWTInverse(wave='db2', separable=separable)
+    ifm((yl.detach(), yh)).pow(2).sum().backward()
+    for h in yh:
+        assert h.grad is not None
+
+    # And it is the right gradient: the one both inputs get together.
+    yh2 = [h.detach().requires_grad_() for h in yh]
+    yl2 = yl.detach().requires_grad_()
+    ifm((yl2, yh2)).pow(2).sum().backward()
+    for h, h2 in zip(yh, yh2):
+        torch.testing.assert_close(h.grad, h2.grad)
+
+
+def test_inverse_1d_gradient_wrt_highpass_alone(double):
+    x = torch.randn(1, 2, 32)
+    yl, yh = DWT1DForward(J=2, wave='db2')(x)
+    yh = [h.detach().requires_grad_() for h in yh]
+    DWT1DInverse(wave='db2')((yl.detach(), yh)).pow(2).sum().backward()
+    for h in yh:
+        assert h.grad is not None
+
+
+@pytest.mark.parametrize('size', [3, 4, 6])
+@pytest.mark.parametrize('separable', [True, False])
+def test_periodization_gradient_long_filter(double, separable, size):
+    """ db4 has 8 taps, longer than these inputs: the periodic wrap goes
+    round the signal more than once, which the old single fold got wrong in
+    both directions. """
+    x = _rand(1, 1, size, size)
+    if separable:
+        f = DWTForward(J=1, wave='db4', mode='periodization')
+        args = (x, f.h0_col, f.h1_col, f.h0_row, f.h1_row)
+        fn = AFB2D.apply
+    else:
+        f = DWTForward(J=1, wave='db4', mode='periodization', separable=False)
+        args = (x, f.h)
+        fn = AFB2D_nonsep.apply
+    assert gradcheck(fn, args + (mode_to_int('periodization'),),
+                     eps=1e-6, atol=1e-6)
+
+    g = DWTInverse(wave='db4', mode='periodization', separable=separable)
+    n = (size + 1) // 2
+    low, high = _rand(1, 1, n, n), _rand(1, 1, 3, n, n)
+    if separable:
+        args = (low, high, g.g0_col, g.g1_col, g.g0_row, g.g1_row)
+        fn = SFB2D.apply
+    else:
+        args = (low, high, g.g)
+        fn = SFB2D_nonsep.apply
+    assert gradcheck(fn, args + (mode_to_int('periodization'),),
+                     eps=1e-6, atol=1e-6)

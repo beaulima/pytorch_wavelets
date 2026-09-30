@@ -156,7 +156,7 @@ def inv_j1(ll, highr, highi, g0, g1, o_dim, h_dim, w_dim, mode):
     inverse transform and the backward pass of the forward transform.
     """
     if highr is None or highr.shape == torch.Size([]):
-        y = rowfilter(colfilter(ll, g0), g0)
+        y = rowfilter(colfilter(ll, g0, mode), g0, mode)
     else:
         # Get the double sampled bandpass coefficients
         lh, hl, hh = orientations_to_highs(highr, highi, o_dim)
@@ -191,7 +191,7 @@ def inv_j1_rot(ll, highr, highi, g0, g1, g2, o_dim, h_dim, w_dim, mode):
     inverse transform and the backward pass of the forward transform.
     """
     if highr is None or highr.shape == torch.Size([]):
-        y = rowfilter(colfilter(ll, g0), g0)
+        y = rowfilter(colfilter(ll, g0, mode), g0, mode)
     else:
         # Get the double sampled bandpass coefficients
         lh, hl, hh = orientations_to_highs(highr, highi, o_dim)
@@ -378,7 +378,7 @@ class FWD_J2PLUS(Function):
     """ Differentiable function doing second level forward DTCWT """
     @staticmethod
     def forward(ctx, x, h0a, h1a, h0b, h1b, skip_hps, o_dim, ri_dim, mode):
-        mode = 'symmetric'
+        mode = int_to_mode(mode)
         ctx.mode = mode
         ctx.save_for_backward(h0a, h1a, h0b, h1b)
         ctx.dims = get_dimensions5(o_dim, ri_dim)
@@ -453,7 +453,7 @@ class INV_J2PLUS(Function):
     """ Differentiable function doing level 2 onwards inverse DTCWT """
     @staticmethod
     def forward(ctx, lows, highs, g0a, g1a, g0b, g1b, o_dim, ri_dim, mode):
-        mode = 'symmetric'
+        mode = int_to_mode(mode)
         ctx.mode = mode
         ctx.save_for_backward(g0a, g1a, g0b, g1b)
         ctx.dims = get_dimensions5(o_dim, ri_dim)

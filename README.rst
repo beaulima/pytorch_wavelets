@@ -44,8 +44,9 @@ New in version 1.4.0
 **This release requires torch 2.6 or newer.** The previous floor of 1.0.0 had
 not reflected anything the library was tested against for years.
 
-Two further changes alter results for existing code; both are corrections
-rather than API changes, but they are worth reading before upgrading.
+The changes below alter results for existing code. All but the last are
+corrections rather than API changes; the last turns silently wrong output into
+an error. They are worth reading before upgrading.
 
 - **The DWT gradients were wrong for the** ``symmetric`` **and** ``reflect``
   **padding schemes.** Every analysis and synthesis Function computed its
@@ -61,6 +62,22 @@ rather than API changes, but they are worth reading before upgrading.
   ``.parameters()`` and an optimiser will not apply weight decay to them. The
   ``state_dict`` keys are unchanged, so existing checkpoints keep loading, but
   ``optim.SGD(ScatLayer().parameters())`` now raises "empty parameter list".
+- ``periodization`` **was wrong whenever the wavelet was longer than the
+  signal**, which happens a few levels into any multilevel transform (``db10``
+  on a 64x64 image at ``J=4``, say). The convolution overhang was folded back
+  only once, so the coefficients differed from PyWavelets by as much as the
+  signal itself and the transform was no longer invertible. Forward, inverse
+  and gradients are now exact for any filter length, in 1D and 2D, separable
+  or not.
+- **The inverse DWT dropped the gradient of the highpass coefficients when the
+  lowpass did not require one** - learning the details over a detached
+  lowpass, for instance. The coarsest scale got ``grad = None``.
+- **The DTCWT's** ``mode`` **argument is now checked.** Only ``'symmetric'``
+  was ever implemented: other values were accepted, then silently replaced by
+  zero padding at level 1 and symmetric extension below, which broke perfect
+  reconstruction. ``DTCWTForward``, ``DTCWTInverse`` and ``ScatLayerj2`` now
+  raise ValueError for anything but ``'symmetric'``; ``ScatLayer`` accepts
+  ``'symmetric'`` and ``'zero'`` as documented.
 
 New features:
 

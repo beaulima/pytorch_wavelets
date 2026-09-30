@@ -25,6 +25,10 @@ class ScatLayer(nn.Module):
                  combine_colour=False):
         super().__init__()
         self.biort = biort
+        if mode not in ('symmetric', 'zero'):
+            raise ValueError(
+                "ScatLayer supports mode='symmetric' or 'zero', got {!r}".format(
+                    mode))
         # Have to convert the string to an int as the grad checks don't work
         # with string inputs
         self.mode_str = mode
@@ -96,7 +100,9 @@ class ScatLayerj2(nn.Module):
             so are quite long. They also require 7 1D convolutions instead of 6.
         qshift (str): the quarter shift filters to use for the second scale.
             Must be 'qshift_b_bp' when biort is 'near_sym_b_bp'.
-        mode (str): padding mode. Can be 'symmetric' or 'zero'
+        mode (str): padding mode. Only 'symmetric' is supported, as the
+            second scale uses the q-shift filters, which have no other
+            extension implemented.
         magbias (float): the magnitude bias to use for smoothing
         combine_colour (bool): if true, will only have colour lowpass and have
             greyscale bandpass
@@ -106,6 +112,10 @@ class ScatLayerj2(nn.Module):
         super().__init__()
         self.biort = biort
         self.qshift = qshift
+        if mode != 'symmetric':
+            raise ValueError(
+                "ScatLayerj2 only supports mode='symmetric', got {!r}".format(
+                    mode))
         # Have to convert the string to an int as the grad checks don't work
         # with string inputs
         self.mode_str = mode

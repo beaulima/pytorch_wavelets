@@ -224,3 +224,25 @@ def test_gradients_inv(wave, J, mode):
     # Test the bandpass
     for j in range(J):
         np.testing.assert_array_almost_equal(yh[j].grad.detach().cpu(), dyh[j].cpu(), decimal=PREC_FLT)
+
+
+@pytest.mark.parametrize("wave, length, J", [
+    ('db4', 4, 1), ('sym8', 8, 1), ('db10', 16, 2), ('db10', 128, 5),
+    ('db3', 7, 2),
+])
+def test_periodization_filter_longer_than_signal(wave, length, J):
+    x = np.random.randn(2, 3, length)
+    with set_double_precision():
+        dwt = DWT1DForward(J=J, wave=wave, mode='periodization')
+        iwt = DWT1DInverse(wave=wave, mode='periodization')
+    yl, yh = dwt(torch.tensor(x))
+
+    coeffs = pywt.wavedec(x, wave, level=J, mode='periodization')
+    np.testing.assert_array_almost_equal(yl.numpy(), coeffs[0],
+                                         decimal=PREC_DBL)
+    for j in range(J):
+        np.testing.assert_array_almost_equal(yh[j].numpy(), coeffs[J-j],
+                                             decimal=PREC_DBL)
+    np.testing.assert_array_almost_equal(
+        iwt((yl, yh)).numpy(),
+        pywt.waverec(coeffs, wave, mode='periodization'), decimal=PREC_DBL)

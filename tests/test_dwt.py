@@ -389,3 +389,37 @@ def test_mypad_reflect_beyond_f_pad_limit():
     assert out.min() >= 0 and out.max() <= 7
     # whole-sample symmetry: index -1 reflects onto 1, not 0
     assert out[0, 0, 0, 10].item() == 1.0
+
+
+@pytest.mark.parametrize("wave, size, J", [
+    ('db4', 4, 1),     # 8 taps on a 4 sample signal
+    ('sym8', 8, 1),    # 16 taps on 8
+    ('db10', 16, 2),   # the second level sees 8 samples, the filter 20 taps
+    ('db10', 64, 4),   # a realistic image size, deep enough to hit it
+    ('db3', 7, 2),     # odd sizes on top
+])
+@pytest.mark.parametrize("separable", [True, False])
+def test_periodization_filter_longer_than_signal(wave, size, J, separable):
+    """ Periodization used to fold the convolution overhang back only once,
+    which is wrong as soon as the filter outgrows the signal - routinely the
+    case a few levels into a multilevel transform. """
+    x = np.random.randn(2, 3, size, size)
+    with set_double_precision():
+        dwt = DWTForward(J=J, wave=wave, mode='periodization',
+                         separable=separable)
+        iwt = DWTInverse(wave=wave, mode='periodization', separable=separable)
+    yl, yh = dwt(torch.tensor(x))
+
+    coeffs = pywt.wavedec2(x, wave, level=J, axes=(-2, -1),
+                           mode='periodization')
+    np.testing.assert_array_almost_equal(yl.numpy(), coeffs[0],
+                                         decimal=PREC_DBL)
+    for j in range(J):
+        for b in range(3):
+            np.testing.assert_array_almost_equal(
+                coeffs[J-j][b], yh[j][:, :, b].numpy(), decimal=PREC_DBL)
+
+    y = iwt((yl, yh))
+    np.testing.assert_array_almost_equal(
+        y.numpy(), pywt.waverec2(coeffs, wave, axes=(-2, -1),
+                                 mode='periodization'), decimal=PREC_DBL)

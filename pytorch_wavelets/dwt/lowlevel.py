@@ -46,8 +46,31 @@ def _pad_index(length, before, after, mode):
         return reflect(np.arange(-before, length+after, dtype='int32'),
                        0, length-1)
     elif mode in ('periodic', 'periodization', 'per'):
-        return np.pad(np.arange(length), (before, after), mode='wrap')
+        return np.arange(-before, length+after) % length
     raise ValueError("Unkown pad type: {}".format(mode))
+
+
+def _per_analysis_pad(L):
+    """ Circular padding (before, after) for a periodization analysis step.
+
+    With it, a plain stride-2 convolution of an even length-N signal gives
+    exactly N/2 outputs, sample k being
+    sum_m h[m] x[(2k + m - (L-1) + L//2) mod N] - the convention the
+    periodization mode has always used, now for any filter length.
+    """
+    return L - 1 - L//2, L//2 - 1
+
+
+def _per_synthesis_pad(L):
+    """ Circular padding `a` of each subband, and the offset to crop the
+    transposed convolution at, for a periodization synthesis step.
+
+    The result is sample i = sum over 2k + m = i + L//2 - 1 (mod N) of
+    c[k] g[m], the adjoint of :py:func:`_per_analysis_pad`'s analysis. `a` is
+    the least padding for which every one of those terms lands in the window.
+    """
+    a = (L//2 + 1) // 2
+    return a, L//2 - 1 + 2*a
 
 
 def mypad(x, pad, mode='constant', value=0):
@@ -117,7 +140,6 @@ def afb1d(x, h0, h1, mode='zero', dim=-1):
         h1 = torch.tensor(np.copy(np.array(h1).ravel()[::-1]),
                           dtype=x.dtype, device=x.device)
     L = h0.numel()
-    L2 = L // 2
     shape = [1,1,1,1]
     shape[d] = L
     # If h aren't in the right shape, make them so
@@ -134,16 +156,14 @@ def afb1d(x, h0, h1, mode='zero', dim=-1):
             else:
                 x = torch.cat((x, x[:,:,:,-1:]), dim=3)
             N += 1
-        x = roll(x, -L2, dim=d)
-        pad = (L-1, 0) if d == 2 else (0, L-1)
-        lohi = F.conv2d(x, h, padding=pad, stride=s, groups=C)
-        N2 = N//2
-        if d == 2:
-            lohi[:,:,:L2] = lohi[:,:,:L2] + lohi[:,:,N2:N2+L2]
-            lohi = lohi[:,:,:N2]
-        else:
-            lohi[:,:,:,:L2] = lohi[:,:,:,:L2] + lohi[:,:,:,N2:N2+L2]
-            lohi = lohi[:,:,:,:N2]
+        # Wrap the signal around explicitly rather than convolving with zero
+        # padding and folding the overhang back once: a single fold is only
+        # enough while the filter is no longer than the signal, which stops
+        # being true a few levels into any multilevel transform.
+        before, after = _per_analysis_pad(L)
+        pad = (0, 0, before, after) if d == 2 else (before, after, 0, 0)
+        x = mypad(x, pad=pad, mode='periodization')
+        lohi = F.conv2d(x, h, stride=s, groups=C)
     else:
         # Calculate the pad size
         outsize = pywt.dwt_coeff_len(N, L, mode=mode)
@@ -428,15 +448,15 @@ def sfb1d(lo, hi, g0, g1, mode='zero', dim=-1):
     g0 = torch.cat([g0]*C,dim=0)
     g1 = torch.cat([g1]*C,dim=0)
     if mode == 'per' or mode == 'periodization':
+        # As in afb1d, wrap the subbands around first so that the circular
+        # convolution holds for filters longer than the signal.
+        a, off = _per_synthesis_pad(L)
+        pad = (0, 0, a, a) if d == 2 else (a, a, 0, 0)
+        lo = mypad(lo, pad=pad, mode='periodization')
+        hi = mypad(hi, pad=pad, mode='periodization')
         y = F.conv_transpose2d(lo, g0, stride=s, groups=C) + \
             F.conv_transpose2d(hi, g1, stride=s, groups=C)
-        if d == 2:
-            y[:,:,:L-2] = y[:,:,:L-2] + y[:,:,N:N+L-2]
-            y = y[:,:,:N]
-        else:
-            y[:,:,:,:L-2] = y[:,:,:,:L-2] + y[:,:,:,N:N+L-2]
-            y = y[:,:,:,:N]
-        y = roll(y, 1-L//2, dim=dim)
+        y = y.narrow(d, off, N).contiguous()
     else:
         if mode == 'zero' or mode == 'symmetric' or mode == 'reflect' or \
                 mode == 'periodic':
@@ -765,13 +785,10 @@ def afb2d_nonsep(x, filts, mode='zero'):
         if x.shape[3] % 2 == 1:
             x = torch.cat((x, x[:,:,:,-1:]), dim=3)
             Nx += 1
-        pad = (Ly-1, Lx-1)
-        stride = (2, 2)
-        x = roll(roll(x, -Ly//2, dim=2), -Lx//2, dim=3)
-        y = F.conv2d(x, f, padding=pad, stride=stride, groups=C)
-        y[:,:,:Ly//2] += y[:,:,Ny//2:Ny//2+Ly//2]
-        y[:,:,:,:Lx//2] += y[:,:,:,Nx//2:Nx//2+Lx//2]
-        y = y[:,:,:Ny//2, :Nx//2]
+        by, ay = _per_analysis_pad(Ly)
+        bx, ax = _per_analysis_pad(Lx)
+        x = mypad(x, pad=(bx, ax, by, ay), mode='periodization')
+        y = F.conv2d(x, f, stride=2, groups=C)
     elif mode in ('zero', 'symmetric', 'reflect', 'periodic'):
         # Calculate the pad size
         out1 = pywt.dwt_coeff_len(Ny, Ly, mode=mode)
@@ -891,7 +908,9 @@ class SFB2D(Function):
     @staticmethod
     def backward(ctx, dy):
         dlow, dhigh = None, None
-        if ctx.needs_input_grad[0]:
+        # Either input can need a gradient on its own - the highpass alone, for
+        # instance, when the lowpass has been detached.
+        if ctx.needs_input_grad[0] or ctx.needs_input_grad[1]:
             mode = ctx.mode
             g0_col, g1_col, g0_row, g1_row = ctx.saved_tensors
             if mode == 'periodization' or mode == 'per':
@@ -947,7 +966,7 @@ class SFB1D(Function):
     @staticmethod
     def backward(ctx, dy):
         dlow, dhigh = None, None
-        if ctx.needs_input_grad[0]:
+        if ctx.needs_input_grad[0] or ctx.needs_input_grad[1]:
             mode = ctx.mode
             g0, g1, = ctx.saved_tensors
             dy = dy[:, :, None, :]
@@ -1002,11 +1021,11 @@ def sfb2d_nonsep(coeffs, filts, mode='zero'):
 
     x = coeffs.reshape(coeffs.shape[0], -1, coeffs.shape[-2], coeffs.shape[-1])
     if mode == 'periodization' or mode == 'per':
+        ay, offy = _per_synthesis_pad(Ly)
+        ax, offx = _per_synthesis_pad(Lx)
+        x = mypad(x, pad=(ax, ax, ay, ay), mode='periodization')
         ll = F.conv_transpose2d(x, f, groups=C, stride=2)
-        ll[:,:,:Ly-2] += ll[:,:,2*Ny:2*Ny+Ly-2]
-        ll[:,:,:,:Lx-2] += ll[:,:,:,2*Nx:2*Nx+Lx-2]
-        ll = ll[:,:,:2*Ny,:2*Nx]
-        ll = roll(roll(ll, 1-Ly//2, dim=2), 1-Lx//2, dim=3)
+        ll = ll[:, :, offy:offy+2*Ny, offx:offx+2*Nx]
     elif mode == 'symmetric' or mode == 'zero' or mode == 'reflect' or \
             mode == 'periodic':
         pad = (Ly-2, Lx-2)
