@@ -127,7 +127,10 @@ Packaging and infrastructure:
   targets.
 - GitHub Actions replaces the dead Travis config, covering Python 3.9 to 3.12.
   The long gradchecks are marked ``slow`` and run in their own job rather than
-  being skipped outright.
+  being skipped outright; small-input gradchecks of every DTCWT and ScatterNet
+  backward pass run on each pull request. A separate job runs the tests under
+  NumPy 2, leaving out only the comparisons against the ``dtcwt`` reference
+  package, which cannot be installed alongside it.
 - The documentation builds again, and a test suite executes every example it
   prints.
 

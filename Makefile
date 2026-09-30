@@ -87,7 +87,7 @@ test: install ## Run the test suite
 	$(RUN) python -m pytest
 
 test-cov: install ## Run the test suite with a coverage report
-	$(RUN) python -m pytest --cov=pytorch_wavelets --cov-report=term-missing
+	$(RUN) python -m pytest --cov --cov-report=term-missing
 
 test-slow: install ## Run only the slow gradchecks (minutes, not seconds)
 	$(RUN) python -m pytest -m slow

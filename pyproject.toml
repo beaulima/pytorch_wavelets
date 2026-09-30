@@ -94,4 +94,10 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["pytorch_wavelets"]
+# By package name, not by path: CI installs the package into site-packages,
+# so the pytorch_wavelets/ directory in the checkout is never imported, and
+# measuring it recorded nothing - every job reported 0%. source_pkgs follows
+# the package wherever it is imported from, editable install or not. Run
+# pytest with a bare --cov so this is used: --cov=<name> overrides it with a
+# path again.
+source_pkgs = ["pytorch_wavelets"]
