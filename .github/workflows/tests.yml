@@ -46,7 +46,7 @@ jobs:
         run: pip list
 
       - name: Run tests
-        run: pytest --cov=pytorch_wavelets --cov-report=term
+        run: pytest --cov --cov-report=term
 
   numpy2:
     name: numpy 2
@@ -79,7 +79,7 @@ jobs:
         run: pip list
 
       - name: Run tests
-        run: pytest --cov=pytorch_wavelets --cov-report=term
+        run: pytest --cov --cov-report=term
 
   slow:
     name: slow gradchecks
