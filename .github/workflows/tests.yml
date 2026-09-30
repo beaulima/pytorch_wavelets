@@ -48,6 +48,39 @@ jobs:
       - name: Run tests
         run: pytest --cov=pytorch_wavelets --cov-report=term
 
+  numpy2:
+    name: numpy 2
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install CPU-only torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      # Not the `test` extra: it brings the dtcwt reference package, which
+      # pins numpy<2 and would drag the whole job back to NumPy 1 - the only
+      # numpy the other jobs ever see. tests/conftest.py leaves out the files
+      # that compare against dtcwt when it is absent; everything else runs.
+      - name: Install package and test dependencies, with NumPy 2
+        run: pip install . "numpy>=2" pytest pytest-cov py3nvml
+
+      - name: Check that NumPy 2 is what got installed
+        run: |
+          python -c "import numpy, sys; print('numpy', numpy.__version__); sys.exit(int(numpy.__version__.split('.')[0]) < 2)"
+
+      - name: Show the resolved environment
+        run: pip list
+
+      - name: Run tests
+        run: pytest --cov=pytorch_wavelets --cov-report=term
+
   slow:
     name: slow gradchecks
     runs-on: ubuntu-latest
