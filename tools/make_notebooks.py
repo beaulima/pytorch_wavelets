@@ -39,20 +39,30 @@ def main(argv=None):
         '--check', action='store_true',
         help='exit non-zero if any notebook is missing or out of date, '
              'without writing anything')
+    # The pre-commit hook builds from the staged copy of examples/, which it
+    # checks out elsewhere, so both ends can be pointed away from the tree.
+    parser.add_argument(
+        '--examples', type=pathlib.Path, default=EXAMPLES,
+        help='directory holding the plot_*.py scripts (default: %(default)s)')
+    parser.add_argument(
+        '--notebooks', type=pathlib.Path, default=NOTEBOOKS,
+        help='directory to write or check the notebooks in '
+             '(default: %(default)s)')
     args = parser.parse_args(argv)
+    notebooks = args.notebooks
 
-    scripts = sorted(EXAMPLES.glob('plot_*.py'))
+    scripts = sorted(args.examples.glob('plot_*.py'))
     if not scripts:
-        sys.exit('no examples/plot_*.py found')
+        sys.exit('no plot_*.py found in %s' % args.examples)
 
-    NOTEBOOKS.mkdir(exist_ok=True)
+    notebooks.mkdir(exist_ok=True)
     stale = []
     for script in scripts:
         # The converter writes alongside its input, so build in examples/ and
         # move the result over.
         python_to_jupyter_cli([str(script)])
         produced = script.with_suffix('.ipynb')
-        target = NOTEBOOKS / produced.name
+        target = notebooks / produced.name
         nb = json.loads(produced.read_text())
         nb['metadata']['kernelspec'] = KERNELSPEC
         # Canonicalise: the converter does not guarantee a stable key order
@@ -68,17 +78,18 @@ def main(argv=None):
                 stale.append(target.name)
         else:
             target.write_text(new)
-            print('wrote notebooks/%s' % target.name)
+            print('wrote %s' % target)
 
     if args.check:
         if stale:
             sys.exit('out of date with examples/: %s\nrun `make notebooks`'
                      % ', '.join(stale))
-        check_first_cell_is_self_contained()
+        check_first_cell_is_self_contained(notebooks)
+        check_no_execution_residue(notebooks)
         print('notebooks/ is in step with examples/ (%d files)' % len(scripts))
 
 
-def check_first_cell_is_self_contained():
+def check_first_cell_is_self_contained(notebooks):
     """The first code cell must stand on its own.
 
     Notebooks get run out of order - that is the whole point of them - so the
@@ -87,7 +98,7 @@ def check_first_cell_is_self_contained():
     cell gets a NameError.
     """
     bad = []
-    for path in sorted(NOTEBOOKS.glob('plot_*.ipynb')):
+    for path in sorted(notebooks.glob('plot_*.ipynb')):
         cells = json.loads(path.read_text())['cells']
         code = [c for c in cells if c['cell_type'] == 'code']
         first = ''.join(code[0]['source']) if code else ''
@@ -97,10 +108,9 @@ def check_first_cell_is_self_contained():
         sys.exit('first code cell does not import what it uses: %s\n'
                  'keep the imports in the same cell as the seed'
                  % ', '.join(bad))
-    check_no_execution_residue()
 
 
-def check_no_execution_residue():
+def check_no_execution_residue(notebooks):
     """Committed notebooks must carry no trace of having been run.
 
     Running one in place - to check that it still works, say - writes
@@ -109,7 +119,7 @@ def check_no_execution_residue():
     easy to commit without noticing.
     """
     dirty = []
-    for path in sorted(NOTEBOOKS.glob('plot_*.ipynb')):
+    for path in sorted(notebooks.glob('plot_*.ipynb')):
         for cell in json.loads(path.read_text())['cells']:
             if (cell.get('outputs') or cell.get('execution_count')
                     or 'ExecuteTime' in cell.get('metadata', {})):

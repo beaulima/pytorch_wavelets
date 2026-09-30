@@ -51,8 +51,10 @@ __ https://github.com/kymatio/kymatio
 New in version 1.4.0
 ~~~~~~~~~~~~~~~~~~~~
 
-**This release requires torch 2.6 or newer.** The previous floor of 1.0.0 had
-not reflected anything the library was tested against for years.
+**This release requires torch 2.6 or newer and Python 3.10 or newer.** The
+previous floor of torch 1.0.0 had not reflected anything the library was
+tested against for years, and Python 3.9 reached its end of life in October
+2025; torch itself stopped publishing 3.9 wheels after 2.8.
 
 The changes below alter results for existing code. All but the last are
 corrections rather than API changes; the last turns silently wrong output into
@@ -135,7 +137,7 @@ Packaging and infrastructure:
   fail on import.
 - A ``Makefile`` builds a conda/mamba environment; ``make help`` lists the
   targets.
-- GitHub Actions replaces the dead Travis config, covering Python 3.9 to 3.12.
+- GitHub Actions replaces the dead Travis config, covering Python 3.10 to 3.14.
   The long gradchecks are marked ``slow`` and run in their own job rather than
   being skipped outright; small-input gradchecks of every DTCWT and ScatterNet
   backward pass run on each pull request. A separate job runs the tests under
