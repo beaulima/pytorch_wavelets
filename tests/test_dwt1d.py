@@ -246,3 +246,10 @@ def test_periodization_filter_longer_than_signal(wave, length, J):
     np.testing.assert_array_almost_equal(
         iwt((yl, yh)).numpy(),
         pywt.waverec(coeffs, wave, mode='periodization'), decimal=PREC_DBL)
+
+
+@pytest.mark.parametrize("cls", [DWT1DForward, DWT1DInverse])
+@pytest.mark.parametrize("mode", ['bogus', 'constant'])
+def test_unknown_mode_rejected_at_construction(cls, mode):
+    with pytest.raises(ValueError, match='padding mode'):
+        cls(mode=mode)

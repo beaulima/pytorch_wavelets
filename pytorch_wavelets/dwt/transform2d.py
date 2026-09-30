@@ -53,7 +53,7 @@ class DWTForward(nn.Module):
                 h0_col, h1_col, h0_row, h1_row)
             self.register_buffer('h', filts)
         self.J = J
-        self.mode = mode
+        self.mode = lowlevel.check_mode(mode)
 
     def forward(self, x):
         """ Forward pass of the DWT.
@@ -140,7 +140,7 @@ class DWTInverse(nn.Module):
             filts = lowlevel.prep_filt_sfb2d_nonsep(
                 g0_col, g1_col, g0_row, g1_row)
             self.register_buffer('g', filts)
-        self.mode = mode
+        self.mode = lowlevel.check_mode(mode)
 
     def forward(self, coeffs):
         """
@@ -230,7 +230,7 @@ class SWTForward(nn.Module):
         self.register_buffer('h1_row', filts[3])
 
         self.J = J
-        self.mode = mode
+        self.mode = lowlevel.check_mode(mode, lowlevel.SWT_MODES)
 
     def forward(self, x):
         """ Forward pass of the SWT.
@@ -310,7 +310,7 @@ class SWTInverse(nn.Module):
         self.register_buffer('g1_col', filts[1])
         self.register_buffer('g0_row', filts[2])
         self.register_buffer('g1_row', filts[3])
-        self.mode = mode
+        self.mode = lowlevel.check_mode(mode, lowlevel.SWT_MODES)
 
     def forward(self, coeffs):
         """

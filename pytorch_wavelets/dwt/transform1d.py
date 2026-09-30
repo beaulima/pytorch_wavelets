@@ -32,7 +32,7 @@ class DWT1DForward(nn.Module):
         self.register_buffer('h0', filts[0])
         self.register_buffer('h1', filts[1])
         self.J = J
-        self.mode = mode
+        self.mode = lowlevel.check_mode(mode)
 
     def forward(self, x):
         """ Forward pass of the DWT.
@@ -85,7 +85,7 @@ class DWT1DInverse(nn.Module):
         filts = lowlevel.prep_filt_sfb1d(g0, g1)
         self.register_buffer('g0', filts[0])
         self.register_buffer('g1', filts[1])
-        self.mode = mode
+        self.mode = lowlevel.check_mode(mode)
 
     def forward(self, coeffs):
         """

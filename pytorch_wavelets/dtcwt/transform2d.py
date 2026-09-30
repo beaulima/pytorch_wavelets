@@ -10,6 +10,30 @@ from pytorch_wavelets.dtcwt.transform_funcs import get_dimensions6
 from pytorch_wavelets.dwt.lowlevel import mode_to_int
 
 
+def _load_biort(name):
+    """ The four level 1 filters, refusing the bandpass variant.
+
+    near_sym_b_bp carries a third, diagonal bandpass filter pair that only the
+    ScatterNet layers know how to use; here it used to fail with a bare
+    "too many values to unpack". """
+    filts = _biort(name)
+    if len(filts) != 4:
+        raise ValueError(
+            "biort={!r} has bandpass filters the DTCWT does not implement; "
+            "they are only supported by ScatLayer and ScatLayerj2".format(name))
+    return filts
+
+
+def _load_qshift(name):
+    """ The eight q-shift filters, refusing the bandpass variant. """
+    filts = _qshift(name)
+    if len(filts) != 8:
+        raise ValueError(
+            "qshift={!r} has bandpass filters the DTCWT does not implement; "
+            "it is only supported by ScatLayerj2".format(name))
+    return filts
+
+
 def _is_missing(t):
     """ True for the ways a coefficient can be left out: None, an empty
     tensor, or the zero-dimensional placeholder DTCWTForward returns for a
@@ -75,14 +99,14 @@ class DTCWTForward(nn.Module):
         self.ri_dim = ri_dim
         self.mode = _check_mode(mode)
         if isinstance(biort, str):
-            h0o, _, h1o, _ = _biort(biort)
+            h0o, _, h1o, _ = _load_biort(biort)
             self.register_buffer('h0o', prep_filt(h0o, 1))
             self.register_buffer('h1o', prep_filt(h1o, 1))
         else:
             self.register_buffer('h0o', prep_filt(biort[0], 1))
             self.register_buffer('h1o', prep_filt(biort[1], 1))
         if isinstance(qshift, str):
-            h0a, h0b, _, _, h1a, h1b, _, _ = _qshift(qshift)
+            h0a, h0b, _, _, h1a, h1b, _, _ = _load_qshift(qshift)
             self.register_buffer('h0a', prep_filt(h0a, 1))
             self.register_buffer('h0b', prep_filt(h0b, 1))
             self.register_buffer('h1a', prep_filt(h1a, 1))
@@ -193,14 +217,14 @@ class DTCWTInverse(nn.Module):
         self.ri_dim = ri_dim
         self.mode = _check_mode(mode)
         if isinstance(biort, str):
-            _, g0o, _, g1o = _biort(biort)
+            _, g0o, _, g1o = _load_biort(biort)
             self.register_buffer('g0o', prep_filt(g0o, 1))
             self.register_buffer('g1o', prep_filt(g1o, 1))
         else:
             self.register_buffer('g0o', prep_filt(biort[0], 1))
             self.register_buffer('g1o', prep_filt(biort[1], 1))
         if isinstance(qshift, str):
-            _, _, g0a, g0b, _, _, g1a, g1b = _qshift(qshift)
+            _, _, g0a, g0b, _, _, g1a, g1b = _load_qshift(qshift)
             self.register_buffer('g0a', prep_filt(g0a, 1))
             self.register_buffer('g0b', prep_filt(g0b, 1))
             self.register_buffer('g1a', prep_filt(g1a, 1))

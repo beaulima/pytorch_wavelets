@@ -445,3 +445,33 @@ def test_inverse_none_highpass_keeps_dtype(dtype, separable):
     assert y.dtype == dtype
     ref = ifm((yl, [torch.zeros_like(yh[0]), yh[1]]))
     torch.testing.assert_close(y, ref)
+
+
+@pytest.mark.parametrize("cls", [DWTForward, DWTInverse])
+@pytest.mark.parametrize("mode", ['bogus', 'constant', 'replicate', 'Zero'])
+def test_unknown_mode_rejected_at_construction(cls, mode):
+    """ A bad mode used to be accepted and only fail at the first forward
+    pass - and 'constant'/'replicate', which mode_to_int maps to an int, only
+    deep inside afb1d. """
+    with pytest.raises(ValueError, match='padding mode'):
+        cls(mode=mode)
+
+
+@pytest.mark.parametrize("mode", ['zero', 'symmetric', 'reflect',
+                                  'periodization', 'per', 'periodic'])
+def test_every_documented_mode_constructs_and_runs(mode):
+    x = torch.randn(1, 1, 16, 16)
+    y = DWTInverse(wave='db2', mode=mode)(
+        DWTForward(J=2, wave='db2', mode=mode)(x))
+    assert torch.allclose(y[..., :16, :16], x, atol=1e-5)
+
+
+def test_swt_mode_checked_at_construction():
+    from pytorch_wavelets import SWTForward, SWTInverse
+    for cls in (SWTForward, SWTInverse):
+        with pytest.raises(ValueError, match='padding mode'):
+            cls(mode='bogus')
+        # The undecimated transform pads through F.pad as well, so these
+        # two keep working there.
+        cls(mode='constant')
+        cls(mode='replicate')

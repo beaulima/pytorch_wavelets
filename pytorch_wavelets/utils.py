@@ -108,7 +108,11 @@ def asfarray(X):
 
     """
     X = np.asanyarray(X)
-    return np.asfarray(X, dtype=X.dtype)
+    # np.asfarray itself was removed in NumPy 2.0. This is what it did: keep
+    # an inexact (float or complex) dtype, turn anything else into float64.
+    if np.issubdtype(X.dtype, np.inexact):
+        return np.asarray(X)
+    return np.asarray(X, dtype=np.float64)
 
 
 def appropriate_complex_type_for(X):
@@ -120,12 +124,13 @@ def appropriate_complex_type_for(X):
     """
     X = asfarray(X)
 
-    if np.issubsctype(X.dtype, np.complex64) or \
-            np.issubsctype(X.dtype, np.complex128):
+    # np.issubdtype rather than np.issubsctype, which NumPy 2.0 removed.
+    if np.issubdtype(X.dtype, np.complex64) or \
+            np.issubdtype(X.dtype, np.complex128):
         return X.dtype
-    elif np.issubsctype(X.dtype, np.float32):
+    elif np.issubdtype(X.dtype, np.float32):
         return np.complex64
-    elif np.issubsctype(X.dtype, np.float64):
+    elif np.issubdtype(X.dtype, np.float64):
         return np.complex128
 
     # God knows, err on the side of caution
