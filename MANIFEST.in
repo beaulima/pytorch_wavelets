@@ -7,6 +7,7 @@ recursive-include pytorch_wavelets/dtcwt/data *.npz
 recursive-include tests *.py
 recursive-include tests *.npz
 recursive-include examples *.py
+recursive-include benchmarks *.py *.ipynb *.md
 include examples/README.txt
 recursive-include notebooks *.ipynb
 include notebooks/README.md

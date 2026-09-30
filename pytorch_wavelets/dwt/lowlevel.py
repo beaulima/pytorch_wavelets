@@ -6,25 +6,6 @@ from pytorch_wavelets.utils import reflect
 import pywt
 
 
-def roll(x, n, dim, make_even=False):
-    if n < 0:
-        n = x.shape[dim] + n
-
-    if make_even and x.shape[dim] % 2 == 1:
-        end = 1
-    else:
-        end = 0
-
-    if dim == 0:
-        return torch.cat((x[-n:], x[:-n+end]), dim=0)
-    elif dim == 1:
-        return torch.cat((x[:,-n:], x[:,:-n+end]), dim=1)
-    elif dim == 2 or dim == -2:
-        return torch.cat((x[:,:,-n:], x[:,:,:-n+end]), dim=2)
-    elif dim == 3 or dim == -1:
-        return torch.cat((x[:,:,:,-n:], x[:,:,:,:-n+end]), dim=3)
-
-
 def _pad_index(length, before, after, mode):
     """ Index array mapping each padded position back to a source sample.
 

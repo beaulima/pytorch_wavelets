@@ -2,7 +2,7 @@
 
 These are generated from the gallery scripts in [`examples/`](../examples), and
 are not edited by hand. Each one is the same demo as the corresponding page of
-the [documentation](https://pytorch-wavelets.readthedocs.io/), minus the
+the documentation (`make docs` builds it), minus the
 figures - run the notebook and they appear.
 
 | Notebook | What it covers |
@@ -37,7 +37,8 @@ environment, and then the first cell fails on the imports.
 Or with pip, into an environment of your own:
 
 ```bash
-pip install "pytorch_wavelets[examples]" notebook ipykernel
+pip install "pytorch_wavelets[examples] @ git+https://github.com/beaulima/pytorch_wavelets.git" \
+    notebook ipykernel
 python -m ipykernel install --user --name pytorch_wavelets \
     --display-name "Python (pytorch_wavelets)"
 jupyter notebook notebooks/

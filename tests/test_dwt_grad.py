@@ -3,7 +3,6 @@ import pytest
 from torch.autograd import gradcheck
 from pytorch_wavelets.dwt.lowlevel import AFB2D, SFB2D
 from pytorch_wavelets import DWTForward, DWTInverse
-import py3nvml
 from contextlib import contextmanager
 ATOL = 1e-4
 EPS = 1e-4
@@ -23,10 +22,6 @@ def set_double_precision():
         yield
     finally:
         torch.set_default_dtype(old_prec)
-
-
-def setup_module():
-    py3nvml.grab_gpus(1, gpu_fraction=0.5, env_set_ok=True)
 
 
 # These used to be skipped, and used the default db1 wavelet. Both mattered:

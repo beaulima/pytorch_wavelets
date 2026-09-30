@@ -2,7 +2,7 @@
 
 A handful of test files compare against the numpy reference implementation in
 the ``dtcwt`` package. That package declares numpy<2, so an environment with
-NumPy 2 - what a plain ``pip install pytorch_wavelets`` gives today - cannot
+NumPy 2 - what a plain ``pip install`` of this package gives today - cannot
 have it. Leave those files out of collection there rather than failing on the
 import, and say so in the header so a short run is never mistaken for a full
 one. Everything else, the library itself included, must pass under NumPy 2.

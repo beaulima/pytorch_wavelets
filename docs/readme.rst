@@ -41,7 +41,7 @@ Installation
 The recommended way is to use the provided ``Makefile``, which builds a
 self-contained conda/mamba environment::
 
-    $ git clone https://github.com/fbcotter/pytorch_wavelets
+    $ git clone https://github.com/beaulima/pytorch_wavelets
     $ cd pytorch_wavelets
     $ make dev
 

@@ -6,7 +6,6 @@ import pytest
 import datasets
 from pytorch_wavelets.dtcwt.lowlevel import colfilter, prep_filt
 import torch
-import py3nvml
 
 HAVE_GPU = torch.cuda.is_available()
 if HAVE_GPU:
@@ -19,7 +18,6 @@ def setup_module():
     global barbara, barbara_t
     global bshape, bshape_extrarow
     global ref_colfilter, ch
-    py3nvml.grab_gpus(1, gpu_fraction=0.5, env_set_ok=True)
     barbara = datasets.barbara()
     barbara = (barbara/barbara.max()).astype('float32')
     barbara = barbara.transpose([2, 0, 1])

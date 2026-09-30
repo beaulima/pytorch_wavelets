@@ -1,28 +1,37 @@
 2D Wavelet Transforms in Pytorch
 ================================
 
-|build-status| |docs| |doi|
+|build-status| |doi|
 
-.. |build-status| image:: https://github.com/fbcotter/pytorch_wavelets/actions/workflows/tests.yml/badge.svg?branch=master
+.. |build-status| image:: https://github.com/beaulima/pytorch_wavelets/actions/workflows/tests.yml/badge.svg?branch=master
     :alt: build status
-    :target: https://github.com/fbcotter/pytorch_wavelets/actions/workflows/tests.yml
-
-.. |docs| image:: https://readthedocs.org/projects/pytorch-wavelets/badge/?version=latest
-    :target: https://pytorch-wavelets.readthedocs.io/en/latest/?badge=latest
-    :alt: Documentation Status
+    :target: https://github.com/beaulima/pytorch_wavelets/actions/workflows/tests.yml
 
 .. |doi| image:: https://zenodo.org/badge/146817005.svg
+   :alt: DOI of the original pytorch_wavelets
    :target: https://zenodo.org/badge/latestdoi/146817005
-   
-The full documentation is also available `here`__, including a gallery of
-worked examples covering the DWT basics, the DTCWT's directional selectivity,
-shift invariance, denoising and optimising through the transform. Every
-example is executed when the documentation is built, and can be downloaded as
-a script or a notebook. The same demos are committed as notebooks under
-``notebooks/``, generated from the gallery scripts and checked in CI to be in
-step with them.
 
-__ http://pytorch-wavelets.readthedocs.io/
+.. note::
+
+   This is a fork of Fergal Cotter's `pytorch_wavelets`__, whose last release
+   is 1.3.0. The fork is **not published on PyPI**: ``pip install
+   pytorch_wavelets`` installs that original release, not this. Install this
+   one from GitHub::
+
+       pip install "pytorch_wavelets @ git+https://github.com/beaulima/pytorch_wavelets.git"
+
+   Its documentation is not hosted either - the one at
+   pytorch-wavelets.readthedocs.io describes the original. Build it with
+   ``make docs`` (see Installation below).
+
+__ https://github.com/fbcotter/pytorch_wavelets
+
+The documentation includes a gallery of worked examples covering the DWT
+basics, the DTCWT's directional selectivity, shift invariance, denoising and
+optimising through the transform. Every example is executed when the
+documentation is built, and can be downloaded as a script or a notebook. The
+same demos are committed as notebooks under ``notebooks/``, generated from the
+gallery scripts and checked in CI to be in step with them.
 
 This package provides support for computing the 2D discrete wavelet and 
 the 2d dual-tree complex wavelet transforms, their inverses, and passing 
@@ -34,7 +43,8 @@ We use the standard pytorch implementation of having 'NCHW' data format.
 We also have added layers to do the 2-D DTCWT based scatternet. This is similar
 to the Morlet based scatternet in `KymatIO`__, but is roughly 10 times faster.
 
-If you use this repo, please cite my PhD thesis, chapter 3: https://doi.org/10.17863/CAM.53748.
+If you use this repo, please cite Fergal Cotter's PhD thesis, chapter 3, where
+these transforms were developed: https://doi.org/10.17863/CAM.53748.
 
 __ https://github.com/kymatio/kymatio
 
@@ -133,6 +143,15 @@ Packaging and infrastructure:
   package, which cannot be installed alongside it.
 - The documentation builds again, and a test suite executes every example it
   prints.
+- ``pytorch_wavelets.dtcwt.lowlevel2`` is removed. It was an abandoned attempt
+  at a DTCWT built from four DWTs - slower, by its own docstring, than the
+  real one - that nothing used, documented or tested; ``DTCWTForward2``,
+  ``DTCWTInverse2`` and the ``quad_*`` filter banks went with it, as did the
+  ``roll`` helper in ``pytorch_wavelets.dwt.lowlevel`` that only it called.
+- The profiling scripts and the stability notebook move from ``tests/`` to
+  ``benchmarks/``, repaired to run on current torch. The nvprof-only scripts
+  are gone, and so is the ``py3nvml`` test dependency, which only served to
+  pick a GPU by setting ``CUDA_VISIBLE_DEVICES`` for the whole test session.
 
 New in version 1.3.0
 ~~~~~~~~~~~~~~~~~~~~
@@ -216,13 +235,13 @@ filters for subsequent scales. For the dwt we use the `db4` filters.
 For a fixed input size, but varying the number of scales (from 1 to 4) we have
 the following speeds (averaged over 5 runs):
 
-.. image:: https://raw.githubusercontent.com/fbcotter/pytorch_wavelets/master/docs/scale.png
+.. image:: https://raw.githubusercontent.com/beaulima/pytorch_wavelets/master/docs/scale.png
     :width: 700px
 
 For an input size with height and width 512 by 512, we also vary the batch size
 for a 3 scale transform. The resulting speeds were:
 
-.. image:: https://raw.githubusercontent.com/fbcotter/pytorch_wavelets/master/docs/batchsize.png
+.. image:: https://raw.githubusercontent.com/beaulima/pytorch_wavelets/master/docs/batchsize.png
     :width: 700px
 
 Installation
@@ -231,7 +250,7 @@ The recommended way is to use the provided ``Makefile``, which builds a
 self-contained conda/mamba environment (a `miniforge
 <https://github.com/conda-forge/miniforge>`_ install gives you both)::
 
-    $ git clone https://github.com/fbcotter/pytorch_wavelets
+    $ git clone https://github.com/beaulima/pytorch_wavelets
     $ cd pytorch_wavelets
     $ make dev
 
@@ -325,9 +344,9 @@ To test whether the repo is working on your gpu, you can download the repo,
 ensure you have pytorch with cuda enabled (the tests will check to see if
 :code:`torch.cuda.is_available()` returns true), and run:
 
-.. code:: 
+.. code::
 
-    pip install -r tests/requirements.txt
+    pip install ".[test]"
     pytest tests/
 
 From the base of the repo.
