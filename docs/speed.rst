@@ -1,10 +1,15 @@
 Notes on Speed
 ==============
 
-Under tests/, the `profile_xfms`
-script tests the speed of several layers of the DTCWT for working on a moderately sized input 
-:math:`X \in \mathbb{R}^{10 \times 10 \times 128 \times 128}`.  As a reference, an 11 by 11 
-convolution takes 2.53ms for a tensor of this size. 
+The figures below were measured with nvprof, on the GPU of the day, for several layers of the DTCWT working on a
+moderately sized input :math:`X \in \mathbb{R}^{10 \times 10 \times 128 \times 128}`. As a reference, an 11 by 11
+convolution takes 2.53ms for a tensor of this size. They date from the original release and have not been
+re-measured since.
+
+To profile on your own hardware, ``benchmarks/profile_dtcwt.py`` in the repository runs the same workloads
+(forward, inverse or end to end, and the reference convolutions) for a profiler to record, e.g.
+``nsys profile python benchmarks/profile_dtcwt.py -j 2``. ``benchmarks/compare_numpy.py`` times the transforms
+against PyWavelets and the ``dtcwt`` package.
 
 A single layer DTCWT using the 'near_sym_a' filters (lengths 5 and 7) has 6 convolutional calls. I timed them at 238us
 each for a total of 1.43ms. Unfortunately, there is also a bit of overhead in calculating the DTCWT, and not all non

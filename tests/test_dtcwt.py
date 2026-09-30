@@ -6,7 +6,6 @@ from pytorch_wavelets import DTCWTForward, DTCWTInverse
 from pytorch_wavelets.dtcwt.coeffs import biort as _biort, qshift as _qshift
 import datasets
 import torch
-import py3nvml
 from contextlib import contextmanager
 PRECISION_FLOAT = 3
 PRECISION_DOUBLE = 7
@@ -32,7 +31,6 @@ def setup_module():
     global barbara, barbara_t
     global bshape, bshape_half
     global ch
-    py3nvml.grab_gpus(1, gpu_fraction=0.5, env_set_ok=True)
     barbara = datasets.barbara()
     barbara = (barbara/barbara.max()).astype('float32')
     barbara = barbara.transpose([2, 0, 1])

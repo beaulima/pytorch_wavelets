@@ -173,7 +173,7 @@ plt.tight_layout()
 #
 # Comparing the two properly means measuring what the representation does for
 # a downstream task over many images, which is what
-# ``tests/Measure of Stability.ipynb`` in this repository does: it draws 1000
+# ``benchmarks/measure_of_stability.ipynb`` in this repository does: it draws 1000
 # samples, applies shifts, noise and deformations, and reports the distance
 # between scattering outputs. The numbers in :doc:`../scatternet` come from it.
 

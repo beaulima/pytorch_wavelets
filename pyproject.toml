@@ -33,8 +33,10 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-Homepage = "https://github.com/fbcotter/pytorch_wavelets"
-Documentation = "https://pytorch-wavelets.readthedocs.io/"
+# A fork, not published on PyPI: the documentation is built locally with
+# `make docs`, and pytorch-wavelets.readthedocs.io documents the original.
+Homepage = "https://github.com/beaulima/pytorch_wavelets"
+Upstream = "https://github.com/fbcotter/pytorch_wavelets"
 
 [project.optional-dependencies]
 test = [
@@ -45,7 +47,6 @@ test = [
     # declares numpy<2.0.0, which constrains the whole test environment - the
     # library itself has no such limit.
     "dtcwt",
-    "py3nvml",
 ]
 docs = [
     # sphinx>=4 for the modern config, and bibtex>=2 is the version that
@@ -69,7 +70,6 @@ examples = [
 ]
 dev = [
     "pytorch_wavelets[test,docs]",
-    "pandas",
     "flake8",
     "build",
     "twine",

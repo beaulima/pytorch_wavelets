@@ -4,7 +4,6 @@ from torch.autograd import gradcheck
 from pytorch_wavelets.dtcwt.transform2d import DTCWTForward, DTCWTInverse
 import pytorch_wavelets.dtcwt.transform_funcs as tf
 from pytorch_wavelets.dwt.lowlevel import mode_to_int
-import py3nvml
 from contextlib import contextmanager
 ATOL = 1e-4
 
@@ -30,7 +29,6 @@ def setup_module():
     mode = mode_to_int('symmetric')
     o_dim = 2
     ri_dim = -1
-    py3nvml.grab_gpus(1, gpu_fraction=0.5, env_set_ok=True)
 
 
 @pytest.mark.slow

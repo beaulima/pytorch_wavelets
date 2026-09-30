@@ -34,7 +34,6 @@ dependencies:
   - flake8
   - python-build
   - twine
-  - pandas
   # Docs and the examples gallery
   - sphinx-gallery
   - scikit-image
@@ -46,9 +45,7 @@ dependencies:
   # absent from the `examples` extra, which the docs build also installs.
   - ipython
   - notebook
-  # Not packaged on conda-forge - these are the numpy reference implementation
-  # the tests compare against, and the GPU memory helper used by the profiling
-  # scripts.
+  # Not packaged on conda-forge - the numpy reference implementation the tests
+  # compare against.
   - pip:
       - dtcwt
-      - py3nvml

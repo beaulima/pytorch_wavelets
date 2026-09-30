@@ -3,7 +3,6 @@ from pytorch_wavelets.scatternet import ScatLayer, ScatLayerj2
 from pytorch_wavelets.scatternet.lowlevel import SmoothMagFn
 import torch
 import pytest
-import py3nvml
 
 
 HAVE_GPU = torch.cuda.is_available()
@@ -11,10 +10,6 @@ if HAVE_GPU:
     dev = torch.device('cuda')
 else:
     dev = torch.device('cpu')
-
-
-def setup_module():
-    py3nvml.grab_gpus(1, gpu_fraction=0.5, env_set_ok=True)
 
 
 @pytest.mark.slow
