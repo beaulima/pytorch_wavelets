@@ -469,6 +469,29 @@ def sfb1d(lo, hi, g0, g1, mode='zero', dim=-1):
     return y
 
 
+# The padding schemes the decimated filter banks (afb1d/sfb1d and the
+# nonseparable versions) implement. 'per' is an alias of 'periodization'.
+DWT_MODES = ('zero', 'symmetric', 'reflect', 'periodization', 'per',
+             'periodic')
+# The undecimated ones pad through mypad alone, which also has F.pad's
+# 'constant' and 'replicate'.
+SWT_MODES = DWT_MODES + ('constant', 'replicate')
+
+
+def check_mode(mode, allowed=DWT_MODES):
+    """ Return `mode` if it is one of `allowed`, else raise ValueError.
+
+    For the transform modules to call at construction, so that a typo fails
+    where it was made rather than at the first forward pass - or, for
+    'constant' and 'replicate', which mode_to_int does accept, deep inside
+    afb1d.
+    """
+    if mode not in allowed:
+        raise ValueError("Unknown padding mode {!r}; expected one of {}".format(
+            mode, ', '.join(repr(m) for m in allowed)))
+    return mode
+
+
 def mode_to_int(mode):
     if mode == 'zero':
         return 0

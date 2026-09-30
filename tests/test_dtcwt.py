@@ -497,3 +497,13 @@ def test_inv_without_lowpass_or_coarse_bandpasses(o_dim, ri_dim):
 def test_inv_with_nothing_raises():
     with pytest.raises(ValueError, match='no lowpass'):
         DTCWTInverse()((None, [None, None]))
+
+
+@pytest.mark.parametrize("kwargs", [dict(biort='near_sym_b_bp'),
+                                    dict(qshift='qshift_b_bp')])
+def test_bandpass_filters_are_rejected_clearly(kwargs):
+    """ The _bp filter sets carry a third filter pair only the ScatterNet
+    uses; the DTCWT used to fail on them with "too many values to unpack". """
+    for cls in (DTCWTForward, DTCWTInverse):
+        with pytest.raises(ValueError, match='ScatLayer'):
+            cls(**kwargs)

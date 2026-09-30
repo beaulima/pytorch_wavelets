@@ -102,6 +102,17 @@ Other fixes:
   bandpasses alike.
 - ``AFB2D``/``SFB2D`` applied the column filters across the rows when given
   four distinct filters.
+- The DWT, 1D DWT and SWT modules check their ``mode`` when they are built,
+  and raise ValueError naming the valid ones. A typo used to be accepted and
+  only fail at the first forward pass; ``'constant'`` and ``'replicate'``,
+  which the decimated transforms never implemented, failed deep inside
+  ``afb1d``. The SWT still accepts both.
+- ``DTCWTForward``/``DTCWTInverse`` given ``near_sym_b_bp`` or ``qshift_b_bp``
+  failed with "too many values to unpack"; they now say that those bandpass
+  filter sets are only supported by the ScatterNet layers.
+- ``pytorch_wavelets.utils.asfarray`` and ``appropriate_complex_type_for``
+  raised AttributeError under NumPy 2, which removed ``np.asfarray`` and
+  ``np.issubsctype``. They no longer depend on either.
 - ``SmoothMagFn`` raised UnboundLocalError when only its second input needed a
   gradient, and ``ScatLayerj2`` recorded ``biort`` as its ``qshift``.
 - Coefficients load through ``importlib.resources`` instead of the deprecated
