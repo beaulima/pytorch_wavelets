@@ -5,8 +5,15 @@
 # empty cell, execution counts, output, timing metadata. Since notebooks/ is
 # generated from examples/, that shows up as drift and fails the CI check for
 # reasons that have nothing to do with the code. This hook regenerates them and
-# restages the result, so the committed notebooks are always the canonical
-# output of the scripts.
+# stages the result, so the committed notebooks are always the canonical
+# output of the scripts being committed.
+#
+# It works from the index, not the working tree. The notebooks are generated
+# from the staged examples/, so a partial `git add -p` commits notebooks that
+# match the scripts actually committed, and they are staged straight into the
+# index. A working-tree notebook is only brought along when it had no changes
+# of its own; one with unstaged edits - output from a run, say - is left as it
+# was, still showing as modified.
 #
 # Install with `make hooks`, which points core.hooksPath here. Skip once with
 # `git commit --no-verify`.
@@ -37,19 +44,40 @@ if [ -z "$PYTHON" ]; then
     exit 0
 fi
 
-if ! "$PYTHON" tools/make_notebooks.py >/dev/null 2>&1; then
+tmp=$(mktemp -d) || exit 0
+trap 'rm -rf "$tmp"' EXIT
+
+# The staged examples/, exactly as they will be committed.
+git ls-files -z -- examples | xargs -0 git checkout-index --prefix="$tmp/" --
+
+if ! "$PYTHON" tools/make_notebooks.py --examples "$tmp/examples" \
+        --notebooks "$tmp/notebooks" >/dev/null 2>&1; then
     echo "pre-commit: regenerating notebooks/ failed; commit left as it was."
     exit 0
 fi
 
-# Restage only the generated notebooks the regeneration actually touched -
-# anything else under notebooks/, the README for one, is hand written and none
-# of this hook's business.
-changed=$(git diff --name-only -- 'notebooks/*.ipynb')
+changed=
+for nb in "$tmp"/notebooks/plot_*.ipynb; do
+    [ -e "$nb" ] || continue
+    path="notebooks/$(basename "$nb")"
+    blob=$(git hash-object -w -- "$nb")
+    staged=$(git rev-parse -q --verify ":$path")
+    [ "$blob" = "$staged" ] && continue
+
+    # Decide about the working tree before the index moves: it follows only
+    # if it matched the index, or the notebook is new.
+    if [ -z "$staged" ] || git diff --quiet -- "$path"; then
+        cp -- "$nb" "$path"
+    fi
+    git update-index --add --cacheinfo 100644,"$blob","$path"
+    changed="$changed $path"
+done
+
 if [ -n "$changed" ]; then
-    echo "$changed" | tr '\n' '\0' | xargs -0 git add --
-    echo "pre-commit: normalised and restaged:"
-    echo "$changed" | sed 's/^/            /'
+    echo "pre-commit: normalised and staged:"
+    for path in $changed; do
+        echo "            $path"
+    done
 fi
 
 exit 0

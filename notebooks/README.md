@@ -57,8 +57,9 @@ After changing anything under `examples/`:
 make notebooks
 ```
 
-CI runs `make check-notebooks` and fails if the two have drifted apart, so the
-notebooks cannot quietly fall behind the scripts the documentation executes.
+CI runs the same check as `make check-notebooks` and fails if the two have
+drifted apart, so the notebooks cannot quietly fall behind the scripts the
+documentation executes.
 
 Opening a notebook in Jupyter is enough to make it drift: saving writes a
 trailing empty cell, execution counts and timing metadata back into the file.
@@ -68,7 +69,11 @@ Rather than leave that to be tidied up by hand, install the git hook once:
 make hooks
 ```
 
-It regenerates the notebooks and restages them before each commit that touches
-`examples/` or `notebooks/`, and stays out of the way otherwise. Skip it for a
+Before each commit that touches `examples/` or `notebooks/`, it regenerates the
+notebooks from the scripts *as staged* and stages the result, and stays out of
+the way otherwise. Committing part of a script with `git add -p` therefore
+commits notebooks that match exactly that part. A notebook you have run and
+not staged keeps its outputs in your working tree - the clean version goes
+into the commit, and yours still shows as modified afterwards. Skip it for a
 single commit with `git commit --no-verify`, and undo it with
 `git config --unset core.hooksPath`.

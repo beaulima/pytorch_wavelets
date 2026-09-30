@@ -14,6 +14,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Every job only reads the repository. Without this the GITHUB_TOKEN gets the
+# repository's default permissions, which can include write access.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: py${{ matrix.python-version }}
@@ -22,7 +27,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        # The dtcwt reference package in the test extra pins numpy<2, which has
+        # no wheels past Python 3.12; newer Pythons run in the numpy2 job.
+        python-version: ['3.10', '3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
 
@@ -49,15 +56,22 @@ jobs:
         run: pytest --cov --cov-report=term
 
   numpy2:
-    name: numpy 2
+    name: numpy 2 / py${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12 overlaps the numpy 1 jobs, so a failure that shows up only here
+        # is down to numpy rather than python. 3.13 and 3.14 can only be tested
+        # this way.
+        python-version: ['3.12', '3.13', '3.14']
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: pyproject.toml
 
@@ -126,7 +140,7 @@ jobs:
       # A full run against .flake8, which ignores two cosmetic classes the
       # codebase uses consistently (E226/E231 tight spacing) and nothing else.
       - name: Lint
-        run: flake8 --show-source pytorch_wavelets tests examples benchmarks
+        run: flake8 --show-source pytorch_wavelets tests examples benchmarks tools
 
   docs:
     runs-on: ubuntu-latest

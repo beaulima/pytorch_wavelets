@@ -96,7 +96,7 @@ test-all: install ## Run every test, slow ones included
 	$(RUN) python -m pytest -m ''
 
 lint: env ## Run flake8 over the package
-	$(RUN) python -m flake8 pytorch_wavelets tests examples benchmarks
+	$(RUN) python -m flake8 pytorch_wavelets tests examples benchmarks tools
 
 hooks: env ## Install the git hooks (normalises notebooks/ before each commit)
 	git config core.hooksPath tools/hooks
