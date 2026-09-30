@@ -94,6 +94,12 @@ Other fixes:
 - ``mode='reflect'`` works when the wavelet is longer than the signal, where it
   used to raise RuntimeError.
 - ``mypad`` raised IndexError whenever both axes were padded.
+- ``DWTInverse`` failed on any input that was not float32 when a highpass was
+  given as None; the zeros standing in for it are now of the input's dtype.
+- ``DTCWTInverse`` raised AttributeError when the lowpass was None, which its
+  documentation has always allowed. None, an empty tensor or the placeholder
+  of a skipped scale now all stand for zeros, for the lowpass and the
+  bandpasses alike.
 - ``AFB2D``/``SFB2D`` applied the column filters across the rows when given
   four distinct filters.
 - ``SmoothMagFn`` raised UnboundLocalError when only its second input needed a

@@ -1,7 +1,6 @@
 import torch.nn as nn
 import pywt
 import pytorch_wavelets.dwt.lowlevel as lowlevel
-import torch
 
 
 class DWTForward(nn.Module):
@@ -171,8 +170,10 @@ class DWTInverse(nn.Module):
         # Do a multilevel inverse transform
         for h in yh[::-1]:
             if h is None:
-                h = torch.zeros(ll.shape[0], ll.shape[1], 3, ll.shape[-2],
-                                ll.shape[-1], device=ll.device)
+                # new_zeros, so the stand-in matches the lowpass's dtype as
+                # well as its device - float64 or half inputs used to fail.
+                h = ll.new_zeros(ll.shape[0], ll.shape[1], 3, ll.shape[-2],
+                                 ll.shape[-1])
 
             # 'Unpad' added dimensions
             if ll.shape[-2] > h.shape[-2]:

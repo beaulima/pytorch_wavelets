@@ -10,6 +10,13 @@ from pytorch_wavelets.dtcwt.transform_funcs import get_dimensions6
 from pytorch_wavelets.dwt.lowlevel import mode_to_int
 
 
+def _is_missing(t):
+    """ True for the ways a coefficient can be left out: None, an empty
+    tensor, or the zero-dimensional placeholder DTCWTForward returns for a
+    skipped scale. """
+    return t is None or t.dim() == 0 or t.numel() == 0
+
+
 def pm(a, b):
     u = (a + b)/sqrt(2)
     v = (a - b)/sqrt(2)
@@ -217,9 +224,12 @@ class DTCWTInverse(nn.Module):
             Reconstructed output
 
         Note:
-            Can accept Nones or an empty tensor (torch.tensor([])) for the
-            lowpass or bandpass inputs. In this cases, an array of zeros
-            replaces that input.
+            Can accept None for the lowpass or for any of the bandpass inputs,
+            which is then treated as zeros. An empty tensor
+            (``torch.tensor([])``) or the zero-dimensional placeholder the
+            forward transform returns for skipped scales are treated the same
+            way. The lowpass can only be left out if at least one bandpass is
+            given, as its shape is worked out from them.
 
         Note:
             :math:`H_{in}', W_{in}', H_{in}'', W_{in}''` are the shapes of a
@@ -235,6 +245,11 @@ class DTCWTInverse(nn.Module):
         mode = mode_to_int(self.mode)
         _, _, h_dim, w_dim = get_dimensions6(
             self.o_dim, self.ri_dim)
+        # One spelling for a missing bandpass from here on.
+        highs = [None if _is_missing(s) else s for s in highs]
+        if _is_missing(low):
+            highs, low = self._zero_lowpass(highs)
+            J = len(highs)
         for j, s in zip(range(J-1, 0, -1), highs[1:][::-1]):
             if s is not None and s.shape != torch.Size([]):
                 assert s.shape[self.o_dim] == 6, "Inverse transform must " \
@@ -266,3 +281,25 @@ class DTCWTInverse(nn.Module):
         low = INV_J1.apply(low, highs[0], self.g0o, self.g1o, self.o_dim,
                            self.ri_dim, mode)
         return low
+
+    def _zero_lowpass(self, highs):
+        """ Stand-in for a missing lowpass: the highpasses to reconstruct
+        from, and zeros for the lowpass that feeds the first of them.
+
+        With no lowpass, the levels coarser than the coarsest bandpass given
+        see nothing but zeros and contribute nothing, so reconstruction can
+        start from that bandpass instead - whose lowpass input is exactly
+        twice its size, with no guessing about the padding in between.
+        """
+        for j in range(len(highs) - 1, -1, -1):
+            s = highs[j]
+            if _is_missing(s):
+                continue
+            o, ri = self.o_dim % 6, self.ri_dim % 6
+            # Dropping the orientation and real/imaginary axes leaves
+            # (N, C, H, W) in order, wherever those two axes were put.
+            s = s.select(max(o, ri), 0).select(min(o, ri), 0)
+            n, c, h, w = s.shape
+            return highs[:j + 1], s.new_zeros(n, c, 2 * h, 2 * w)
+        raise ValueError("Cannot invert a DTCWT with no lowpass and no "
+                         "bandpass coefficients: nothing gives the shape")
