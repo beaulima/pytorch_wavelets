@@ -112,7 +112,7 @@ print('SWT coefficient map, shift undone: max difference %.2e' % err)
 
 n_in = batch[0].numel()
 dwt = DWTForward(J=2, wave='db3', mode='periodization')
-dtcwt = DTCWTForward(J=2, mode='periodization')
+dtcwt = DTCWTForward(J=2)
 yl, yh = dwt(batch)
 Yl, Yh = dtcwt(batch)
 print('coefficients per input sample, 2 scales:')
@@ -129,6 +129,11 @@ print('  SWT   %.2f' % (sum(c[0].numel() for c in coeffs) / n_in))
 # quadrature, so as the image slides the pair rotates while its length barely
 # changes - the same way :math:`\\sin^2 + \\cos^2` is constant while either
 # term alone oscillates.
+#
+# One departure from the setup above: the DTCWT only implements symmetric
+# extension, not periodization, so the columns nearest the left and right
+# edges also change with the shift for reasons that have nothing to do with
+# decimation.
 
 
 def mag(y):

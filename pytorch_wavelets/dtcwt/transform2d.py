@@ -16,6 +16,17 @@ def pm(a, b):
     return u, v
 
 
+def _check_mode(mode):
+    # Only symmetric extension is implemented for the q-shift levels, and it is
+    # also what gives the DTCWT perfect reconstruction. Other modes used to be
+    # accepted and then quietly replaced - by symmetric extension from level 2
+    # on, by zero padding at level 1 - which broke reconstruction.
+    if mode != 'symmetric':
+        raise ValueError(
+            "The DTCWT only supports mode='symmetric', got {!r}".format(mode))
+    return mode
+
+
 class DTCWTForward(nn.Module):
     """ Performs a 2d DTCWT Forward decomposition of an image
 
@@ -39,6 +50,8 @@ class DTCWTForward(nn.Module):
             transform.
         o_dim (int): Which dimension to put the orientations in
         ri_dim (int): which dimension to put the real and imaginary parts
+        mode (str): padding scheme. Only 'symmetric' is supported; anything
+            else raises ValueError.
     """
     def __init__(self, biort='near_sym_a', qshift='qshift_a',
                  J=3, skip_hps=False, include_scale=False,
@@ -53,7 +66,7 @@ class DTCWTForward(nn.Module):
         self.J = J
         self.o_dim = o_dim
         self.ri_dim = ri_dim
-        self.mode = mode
+        self.mode = _check_mode(mode)
         if isinstance(biort, str):
             h0o, _, h1o, _ = _biort(biort)
             self.register_buffer('h0o', prep_filt(h0o, 1))
@@ -160,6 +173,8 @@ class DTCWTInverse(nn.Module):
         J (int): Number of levels of decomposition.
         o_dim (int):which dimension the orientations are in
         ri_dim (int): which dimension to put th real and imaginary parts in
+        mode (str): padding scheme. Only 'symmetric' is supported; anything
+            else raises ValueError.
     """
 
     def __init__(self, biort='near_sym_a', qshift='qshift_a', o_dim=2,
@@ -169,7 +184,7 @@ class DTCWTInverse(nn.Module):
         self.qshift = qshift
         self.o_dim = o_dim
         self.ri_dim = ri_dim
-        self.mode = mode
+        self.mode = _check_mode(mode)
         if isinstance(biort, str):
             _, g0o, _, g1o = _biort(biort)
             self.register_buffer('g0o', prep_filt(g0o, 1))

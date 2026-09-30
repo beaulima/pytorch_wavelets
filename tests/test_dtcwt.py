@@ -411,3 +411,52 @@ def test_gradients_inv(biort, qshift, size, J):
     # check the bandpasses are the same
     for y, ref in zip(yhv, ref_bp):
         np.testing.assert_array_almost_equal(y.grad.detach().cpu(), ref.cpu())
+
+
+@pytest.mark.parametrize("mode", ['zero', 'reflect', 'periodization',
+                                  'periodic'])
+def test_unsupported_mode_is_rejected(mode):
+    """ Anything but symmetric extension used to be accepted and then quietly
+    replaced - by zero padding at level 1, by symmetric extension below - with
+    the reconstruction off by a third of the signal. It is now refused. """
+    with pytest.raises(ValueError, match='symmetric'):
+        DTCWTForward(mode=mode)
+    with pytest.raises(ValueError, match='symmetric'):
+        DTCWTInverse(mode=mode)
+
+
+def test_scatlayerj2_unsupported_mode_is_rejected():
+    from pytorch_wavelets import ScatLayer, ScatLayerj2
+    # Used to be accepted, then raise a bare NotImplementedError in forward.
+    with pytest.raises(ValueError, match='symmetric'):
+        ScatLayerj2(mode='zero')
+    with pytest.raises(ValueError):
+        ScatLayer(mode='periodization')
+    ScatLayer(mode='zero')
+
+
+def test_lowlevel_filters_reject_unknown_mode():
+    from pytorch_wavelets.dtcwt.lowlevel import colfilter, rowfilter
+    x = torch.randn(1, 1, 8, 8)
+    h = torch.randn(1, 1, 5, 1)
+    for f in (colfilter, rowfilter):
+        with pytest.raises(ValueError):
+            f(x, h, 'reflect')
+
+
+@pytest.mark.parametrize("mode", ['symmetric', 'zero'])
+def test_fwd_j1_skip_hps_gradient(mode):
+    """ With the level 1 highpasses skipped, the backward pass reconstructs
+    from the lowpass alone - and used to do so with symmetric extension
+    whatever the mode, which is the wrong adjoint for zero padding. """
+    from torch.autograd import gradcheck
+    from pytorch_wavelets.dtcwt.transform_funcs import FWD_J1
+    from pytorch_wavelets.dtcwt.lowlevel import prep_filt
+    from pytorch_wavelets.dwt.lowlevel import mode_to_int
+    h0o, _, h1o, _ = _biort('near_sym_a')
+    with set_double_precision():
+        h0, h1 = prep_filt(h0o, 1), prep_filt(h1o, 1)
+    x = torch.randn(1, 1, 8, 8, dtype=torch.float64, requires_grad=True)
+    assert gradcheck(
+        lambda x: FWD_J1.apply(x, h0, h1, True, 2, -1, mode_to_int(mode))[0],
+        (x,), eps=1e-6, atol=1e-6)

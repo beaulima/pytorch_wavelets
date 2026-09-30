@@ -75,8 +75,10 @@ def colfilter(X, h, mode='symmetric'):
     if mode == 'symmetric':
         xe = symm_pad(row, m)
         X = F.conv2d(X[:,:,xe], h.repeat(ch,1,1,1), groups=ch)
-    else:
+    elif mode == 'zero':
         X = F.conv2d(X, h.repeat(ch, 1, 1, 1), groups=ch, padding=(m, 0))
+    else:
+        raise ValueError("Unsupported mode for the DTCWT filters: {}".format(mode))
     return X
 
 
@@ -89,8 +91,10 @@ def rowfilter(X, h, mode='symmetric'):
     if mode == 'symmetric':
         xe = symm_pad(col, m)
         X = F.conv2d(X[:,:,:,xe], h.repeat(ch,1,1,1), groups=ch)
-    else:
+    elif mode == 'zero':
         X = F.conv2d(X, h.repeat(ch,1,1,1), groups=ch, padding=(0, m))
+    else:
+        raise ValueError("Unsupported mode for the DTCWT filters: {}".format(mode))
     return X
 
 
