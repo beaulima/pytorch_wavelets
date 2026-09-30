@@ -460,3 +460,40 @@ def test_fwd_j1_skip_hps_gradient(mode):
     assert gradcheck(
         lambda x: FWD_J1.apply(x, h0, h1, True, 2, -1, mode_to_int(mode))[0],
         (x,), eps=1e-6, atol=1e-6)
+
+
+@pytest.mark.parametrize("J", [1, 2, 3])
+@pytest.mark.parametrize("size", [32, 30, 37])
+@pytest.mark.parametrize("missing", [None, 'empty', 'scalar'])
+def test_inv_without_lowpass(J, size, missing):
+    """ The docstring always promised None for the lowpass; it used to raise
+    AttributeError. Leaving it out must equal passing zeros. """
+    with set_double_precision():
+        xfm = DTCWTForward(J=J)
+        ifm = DTCWTInverse()
+    x = torch.randn(2, 3, size, size, dtype=torch.float64)
+    yl, yh = xfm(x)
+    ref = ifm((torch.zeros_like(yl), yh))
+    low = {None: None, 'empty': torch.tensor([]),
+           'scalar': yl.new_zeros([])}[missing]
+    torch.testing.assert_close(ifm((low, yh)), ref)
+
+
+@pytest.mark.parametrize("o_dim, ri_dim", [(2, -1), (1, -1), (1, 2), (2, 3)])
+def test_inv_without_lowpass_or_coarse_bandpasses(o_dim, ri_dim):
+    """ Only the finest bandpass given: the coarser levels are all zeros, and
+    the lowpass shape has to come from the finest level. """
+    with set_double_precision():
+        xfm = DTCWTForward(J=3, o_dim=o_dim, ri_dim=ri_dim)
+        ifm = DTCWTInverse(o_dim=o_dim, ri_dim=ri_dim)
+    x = torch.randn(1, 2, 36, 44, dtype=torch.float64)
+    yl, yh = xfm(x)
+    ref = ifm((torch.zeros_like(yl),
+               [yh[0], torch.zeros_like(yh[1]), torch.zeros_like(yh[2])]))
+    out = ifm((None, [yh[0], None, torch.tensor([])]))
+    torch.testing.assert_close(out, ref)
+
+
+def test_inv_with_nothing_raises():
+    with pytest.raises(ValueError, match='no lowpass'):
+        DTCWTInverse()((None, [None, None]))

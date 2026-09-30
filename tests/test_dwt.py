@@ -423,3 +423,25 @@ def test_periodization_filter_longer_than_signal(wave, size, J, separable):
     np.testing.assert_array_almost_equal(
         y.numpy(), pywt.waverec2(coeffs, wave, axes=(-2, -1),
                                  mode='periodization'), decimal=PREC_DBL)
+
+
+@pytest.mark.parametrize("dtype", [torch.float64, torch.float16])
+@pytest.mark.parametrize("separable", [True, False])
+def test_inverse_none_highpass_keeps_dtype(dtype, separable):
+    """ A None highpass is replaced by zeros; those used to be float32
+    whatever the input, so any other dtype failed in the convolution.
+
+    Periodization keeps every subband exactly half the size of the level
+    above, so the stand-in has the shape the real highpass had. """
+    if dtype == torch.float16 and not HAVE_GPU:
+        pytest.skip('half precision convolutions need a GPU')
+    xfm = DWTForward(J=2, wave='db2', mode='periodization',
+                     separable=separable).to(dev, dtype)
+    ifm = DWTInverse(wave='db2', mode='periodization',
+                     separable=separable).to(dev, dtype)
+    x = torch.randn(1, 2, 16, 16, device=dev, dtype=dtype)
+    yl, yh = xfm(x)
+    y = ifm((yl, [None, yh[1]]))
+    assert y.dtype == dtype
+    ref = ifm((yl, [torch.zeros_like(yh[0]), yh[1]]))
+    torch.testing.assert_close(y, ref)
